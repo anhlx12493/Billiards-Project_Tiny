@@ -144,7 +144,7 @@ namespace Billiards
                 }
                 else if (position.Value.y < -5)
                 {
-                    float posZ = MIN_POSITION_TRACK_X + 0.345f * trackCountBall[ball.id] + 0.035f * math.clamp(trackCountBall[ball.id], 0, 1);
+                    float posZ = MIN_POSITION_TRACK_X + 0.325f * trackCountBall[ball.id];
                     if (position.Value.z > posZ + 0.05f)
                     {
                         isBallStillRollingOnPack = true;
