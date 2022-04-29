@@ -5,6 +5,7 @@ using Unity.Tiny.Input;
 using Unity.Tiny.UI;
 using Unity.Tiny;
 using Unity.Physics;
+using Unity.Tiny.Rendering;
 
 namespace Billiards
 {
@@ -26,9 +27,7 @@ namespace Billiards
 
         public enum BallInHand {none, BreakShot, Free };
 
-        private float power;
         private InputSystem Input;
-
         private bool isPowerUp;
         private bool isAdjustBar;
         private bool isAdjustBoard;
@@ -40,6 +39,10 @@ namespace Billiards
         private bool isAnyBallMoving;
         private bool isSmoothRotating;
         private bool isCueBallInPocket;
+        private bool isGlowOpacityUp;
+        private bool isUpdateTarget = true;
+        private bool isAbleShowGlow = true;
+        private bool[] isTargetBalls = new bool[16];
         private float3 firstWorldPositionPower;
         private float3 lastWorldPositionAdjust;
         private float3 direction = new float3(1, 0, 0);
@@ -47,9 +50,10 @@ namespace Billiards
         private float3 mousePosition;
         private float3 positionCueBall;
         private float3 lastMousePosition;
+        private float power;
         private float timeMouseUpCheckDrag;
         private float speedSmoothRotate;
-
+        private float numberShowGlow = 19;
         private BallInHand ballInHand = BallInHand.BreakShot;
 
         protected override void OnStartRunning()
@@ -61,22 +65,18 @@ namespace Billiards
         {
             HandleInput();
             HandleRule();
-            if (isCueBallInPocket)
+            if (!isCueBallInPocket)
             {
-                if (!isAnyBallMoving && !BallController.Instance.isBallStillRollingOnPack)
+                HandleMoveBallInHand();
+                HandlePower();
+                HandleAdjust();
+                HandleGuide();
+                HandleShoot();
+                if (!isAnyBallMoving)
                 {
-                    isCueBallInPocket = false;
-                    ballInHand = BallInHand.Free;
-                    SetCueBall(new float3(0, 3, 0), float3.zero, float3.zero);
-                    BallController.Instance.GetBallOutOfTrack(0);
+                    HandleShowGlow();
                 }
-                return;
             }
-            HandleMoveBallInHand();
-            HandlePower();
-            HandleAdjust();
-            HandleGuide();
-            HandleShoot();
         }
 
         private void HandleRule()
@@ -84,6 +84,36 @@ namespace Billiards
             if (positionCueBall.y < -5f)
             {
                 isCueBallInPocket = true;
+                if (!isAnyBallMoving && !BallController.Instance.isBallStillRollingOnPack)
+                {
+                    isCueBallInPocket = false;
+                    ballInHand = BallInHand.Free;
+                    SetCueBall(new float3(0, 3, 0), float3.zero, float3.zero);
+                    BallController.Instance.GetBallOutOfTrack(0);
+                }
+            }
+            if (isUpdateTarget)
+            {
+                isUpdateTarget = false;
+                int i = 0;
+                Entities.ForEach((ref Ball ball, ref Translation position) =>
+                {
+                    if (position.Value.y > -1)
+                    {
+                        isTargetBalls[i++] = true;
+                    }
+                    else
+                    {
+                        isTargetBalls[i++] = false;
+                    }
+                }).WithoutBurst().Run();
+                isTargetBalls[0] = false;
+            }
+            else
+                if (!isAnyBallMoving && !BallController.Instance.isBallStillRollingOnPack)
+            {
+                isUpdateTarget = true;
+                isAbleShowGlow = true;
             }
         }
 
@@ -425,6 +455,7 @@ namespace Billiards
                         HideCue();
                         BallController.Instance.Hit(StaticFuntion.GetResizeVector2(direction, power));
                         power = 0;
+                        HideAllGlows();
                     }
                 }
                 else
@@ -454,6 +485,70 @@ namespace Billiards
                     }
                 }
             }
+        }
+
+
+        private void HandleShowGlow()
+        {
+            if (isAbleShowGlow)
+            {
+                Entity mat = Entity.Null;
+                if (isGlowOpacityUp)
+                {
+                    if (numberShowGlow > 0)
+                    {
+                        numberShowGlow -= 0.5f;
+                    }
+                    else
+                    {
+                        isGlowOpacityUp = false;
+                    }
+                }
+                else
+                {
+                    if (numberShowGlow < 19)
+                    {
+                        numberShowGlow += 0.5f;
+                    }
+                    else
+                    {
+                        isGlowOpacityUp = true;
+                    }
+                }
+                int i = 0;
+                Entities.ForEach((ref GlowShare glow, ref MeshRenderer meshRenderer) =>
+                {
+                    if (i++ == (int)numberShowGlow)
+                    {
+                        mat = meshRenderer.material;
+                    }
+
+                }).WithoutBurst().Run();
+                i = 0;
+                Entities.ForEach((ref Glow glow, ref MeshRenderer meshRenderer, ref Translation position) =>
+                {
+                    if (isTargetBalls[i++])
+                    {
+                        meshRenderer.material = mat;
+                        position.Value.y = 0;
+                    }
+                    else
+                    {
+                        position.Value.y = 1000;
+                    }
+                }).WithoutBurst().Run();
+            }
+        }
+
+        private void HideAllGlows()
+        {
+            isAbleShowGlow = false;
+            numberShowGlow = 19;
+            isGlowOpacityUp = true;
+            Entities.ForEach((ref Glow glow, ref Translation position) =>
+            {
+                position.Value.y = 1000;
+            }).WithoutBurst().Run();
         }
 
         private void ShowHandMoveFeild()
