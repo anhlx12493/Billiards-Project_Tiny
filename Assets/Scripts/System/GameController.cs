@@ -5,6 +5,7 @@ using Unity.Tiny.Input;
 using Unity.Tiny.UI;
 using Unity.Tiny;
 using Unity.Physics;
+using System;
 
 namespace Billiards
 {
@@ -51,6 +52,12 @@ namespace Billiards
         private float speedSmoothRotate;
 
         private BallInHand ballInHand = BallInHand.BreakShot;
+
+        private struct LitTest
+        {
+            public float x;
+            public float y;
+        }
 
         protected override void OnStartRunning()
         {

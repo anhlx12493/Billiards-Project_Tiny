@@ -22,6 +22,7 @@ namespace Billiards
 
         protected override void OnStartRunning()
         {
+            System.Console.WriteLine("Hello");
         }
         protected override void OnUpdate()
         {
