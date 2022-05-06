@@ -18,16 +18,14 @@
         "Unity.Tiny.Text",
         "Unity.Tiny.Animation",
         "Unity.Tiny.Particles",
+        "Unity.Tiny.UI",
         "Unity.Tiny.2D",
         "Unity.Tiny.Image2D",
         "Unity.Tiny.2D.Native",
         "Unity.Tiny.Image2D.Web",
         "Unity.Tiny.Web",
         "Unity.Tiny.Rendering.Native",
-        "Unity.2D.Entities.Physics",
-        "Unity.Tiny.UI",
-        "Unity.Tiny.UI.Authoring",
-        "Unity.Tiny.UnityInstance"
+        "Unity.2D.Entities.Physics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

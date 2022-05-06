@@ -52,7 +52,7 @@
         },
         {
             "$type": "Unity.Build.Common.ScreenOrientations, Unity.Build",
-            "DefaultOrientation": 3,
+            "DefaultOrientation": 4,
             "AllowAutoRotateToPortrait": false,
             "AllowAutoRotateToReversePortrait": false,
             "AllowAutoRotateToLandscape": true,
