@@ -27,7 +27,8 @@
         "Unity.2D.Entities.Physics",
         "Unity.Tiny.UI",
         "Unity.Tiny.UI.Authoring",
-        "Unity.Tiny.UnityInstance"
+        "Unity.Tiny.UnityInstance",
+        "Billiards.Authoring"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

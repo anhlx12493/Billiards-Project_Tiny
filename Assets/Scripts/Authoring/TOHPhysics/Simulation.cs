@@ -415,7 +415,7 @@ namespace Billiards
                         //The more force pushes down, the larger the resulting force will be.
                         //We're being a bit loosey-goosey here and applying the rolling friction directly
                         //to the linear velocity rather than working it out on a per-contact basis.
-                        Fix64 rollingResistance = StaticData.RollingResistance;
+                        Fix64 rollingResistance = StaticDataPhysics.RollingResistance;
                         //Fix64 rollingResistance = 0.01m;
                         var maximumRollingFrictionForce = impulseSum * rollingResistance;
                         var velocityLengthSquared = body.LinearVelocity.LengthSquared();
