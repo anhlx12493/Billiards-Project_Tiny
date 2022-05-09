@@ -228,7 +228,11 @@ namespace Billiards
         {
             float3 result = float3.zero;
             isHaveResult = false;
-            if (b1 != 0)
+            if (b1 == 0 && b2 == 0)
+            {
+                return result;
+            }
+            if (math.abs(b1) > math.abs(b2))
             {
                 result.x = a2 * b1 - a1 * b2;
                 if (result.x != 0)
@@ -236,6 +240,16 @@ namespace Billiards
                     isHaveResult = true;
                     result.x = (b2 * c1 - b1 * c2) / (a2 * b1 - a1 * b2);
                     result.z = (-a1 * result.x - c1) / b1;
+                }
+            }
+            else
+            {
+                result.x = a1 * b2 - a2 * b1;
+                if (result.x != 0)
+                {
+                    isHaveResult = true;
+                    result.x = (b1 * c2 - b2 * c1) / (a1 * b2 - a2 * b1);
+                    result.z = (-a2 * result.x - c2) / b2;
                 }
             }
             return result;
