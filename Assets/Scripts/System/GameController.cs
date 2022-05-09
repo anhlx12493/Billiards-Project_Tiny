@@ -23,7 +23,7 @@ namespace Billiards
         public const float BORDER_BREAK_SHOT_HAND_MOVE_RIGHT = -2.4f;
         public const float BORDER_HAND_MOVE_BOTTOM = -2.0f;
 
-        private const float MAX_POWER = 60;
+        private const float MAX_POWER = 30;
 
         public enum BallInHand {none, BreakShot, Free };
 
