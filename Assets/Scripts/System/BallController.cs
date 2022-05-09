@@ -192,7 +192,7 @@ namespace Billiards
                         else
                         if (position.Value.y < 2f && position.Value.y > -0.1f)
                         {
-                            position.Value.y = 3f;
+                            //position.Value.y = 3f;
                         }
                     }
                     else
@@ -304,7 +304,7 @@ namespace Billiards
                     if (powPower < 0.00001f)
                     {
                         velocity.Linear.x = 0;
-                        velocity.Linear.y = 0;
+                        velocity.Linear.z = 0;
                         velocity.Angular = float3.zero;
                     }
                     else
