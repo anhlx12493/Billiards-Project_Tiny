@@ -72,21 +72,36 @@ namespace Billiards
                 {
                     if (math.abs(x1 - posStart.x) > math.abs(x2 - posStart.x))
                     {
+                        float sf = x1;
                         x1 = x2;
+                        x2 = sf;
                     }
-                    float y = (-a * x1 - c) / b;
-                    result = new float3(x1, 0, y);
-                    float3 nextPos = posStart + force;
-                    if (posStart.x >= result.x && posStart.x >= nextPos.x || posStart.x <= result.x && posStart.x <= nextPos.x)
+                    if (posStart.x >= x1 && posStart.x <= x2 || posStart.x <= x1 && posStart.x >= x2)
                     {
-                        if (posStart.z >= result.z && posStart.z >= nextPos.z || posStart.z <= result.z && posStart.z <= nextPos.z)
+                        result.x = posStart.x;
+                        result.y = 0;
+                        result.z = posStart.z;
+                        if ((x2 - posStart.x) * force.x > 0)
                         {
                             isHit = true;
                         }
                     }
-                    if (!isHit)
+                    else
                     {
-                        result = float3.zero;
+                        float y = (-a * x1 - c) / b;
+                        result = new float3(x1, 0, y);
+                        float3 nextPos = posStart + force;
+                        if (posStart.x >= result.x && posStart.x >= nextPos.x || posStart.x <= result.x && posStart.x <= nextPos.x)
+                        {
+                            if (posStart.z >= result.z && posStart.z >= nextPos.z || posStart.z <= result.z && posStart.z <= nextPos.z)
+                            {
+                                isHit = true;
+                            }
+                        }
+                        if (!isHit)
+                        {
+                            result = float3.zero;
+                        }
                     }
                 }
             }
@@ -97,30 +112,45 @@ namespace Billiards
                 float A = 1 + p1 * p1;
                 float B = 2 * (b * c / (a * a) - i2 + i1 * b / a);
                 float C = p2 * p2 + 2 * i1 * c / a + i2 * i2 + i1 * i1 - powDiameterBall;
-                QuadraticEquation2(A, B, C, out float y1, out float y2, out isNaN);
+                QuadraticEquation2(A, B, C, out float z1, out float z2, out isNaN);
                 if (isNaN)
                 {
                     result = float3.zero;
                 }
                 else
                 {
-                    if (math.abs(y1 - posStart.z) > math.abs(y2 - posStart.z))
+                    if (math.abs(z1 - posStart.z) > math.abs(z2 - posStart.z))
                     {
-                        y1 = y2;
+                        float sf = z1;
+                        z1 = z2;
+                        z2 = sf;
                     }
-                    float x = (-b * y1 - c) / a;
-                    result = new float3(x, 0, y1);
-                    float3 nextPos = posStart + force;
-                    if (posStart.x >= result.x && posStart.x >= nextPos.x || posStart.x <= result.x && posStart.x <= nextPos.x)
+                    if (posStart.z >= z1 && posStart.z <= z2 || posStart.z <= z1 && posStart.z >= z2)
                     {
-                        if (posStart.z >= result.z && posStart.z >= nextPos.z || posStart.z <= result.z && posStart.z <= nextPos.z)
+                        result.x = posStart.x;
+                        result.y = 0;
+                        result.z = posStart.z;
+                        if ((z2 - posStart.z) * force.z > 0)
                         {
                             isHit = true;
                         }
                     }
-                    if (!isHit)
+                    else
                     {
-                        result = float3.zero;
+                        float x = (-b * z1 - c) / a;
+                        result = new float3(x, 0, z1);
+                        float3 nextPos = posStart + force;
+                        if (posStart.x >= result.x && posStart.x >= nextPos.x || posStart.x <= result.x && posStart.x <= nextPos.x)
+                        {
+                            if (posStart.z >= result.z && posStart.z >= nextPos.z || posStart.z <= result.z && posStart.z <= nextPos.z)
+                            {
+                                isHit = true;
+                            }
+                        }
+                        if (!isHit)
+                        {
+                            result = float3.zero;
+                        }
                     }
                 }
             }
@@ -148,7 +178,7 @@ namespace Billiards
             out bool isHit, out float3 positionHit, ref float3 velocityRootOut, ref float3 velocityTargetOut)
         {
             positionRoot -= velocityRootIn;
-            GetHitPositionBallToBall(positionRoot, positionTarget, velocityRootIn, out isHit, out positionHit);
+            GetHitPositionBallToBall(positionRoot, positionTarget + velocityTargetIn, velocityRootIn, out isHit, out positionHit);
             if (isHit)
             {
                 float3 vetor = positionTarget - positionHit;

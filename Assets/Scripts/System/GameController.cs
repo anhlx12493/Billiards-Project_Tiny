@@ -24,7 +24,7 @@ namespace Billiards
             float3 worldClick = float3.zero;
             worldClick.x = (posClick.x / canvas.SizeDelta.x) * x - x / 2f;
             worldClick.z = (posClick.y / canvas.SizeDelta.y) * 10 - 5;
-            ShowGuide((worldClick - posCueBall));
+            //ShowGuide((worldClick - posCueBall));
         }
 
         private void FixRadius()

@@ -20,6 +20,7 @@ namespace Billiards
 
         private float3[] currentPositionBall;
         private float3[] currentVelocityBall;
+        private float3[] currentMoveAtCollisionBall;
         private float3[] currentAngularVelocityBall;
 
         private int[] currentExcludeLine;
@@ -140,6 +141,7 @@ namespace Billiards
             random = new Random(1);
             currentPositionBall = new float3[count];
             currentVelocityBall = new float3[count];
+            currentMoveAtCollisionBall = new float3[count];
             currentAngularVelocityBall = new float3[count];
             isApplyFriction = new bool[count];
             currentExcludeLine = new int[count];
@@ -257,8 +259,9 @@ namespace Billiards
             for (i = 0; i < isApplyFriction.Length; i++)
             {
                 isApplyFriction[i] = true;
+                currentMoveAtCollisionBall[i] = currentVelocityBall[i];
             }
-            for (int loop = 0; loop < 4; loop++)
+            for (int loop = 0; loop < 5; loop++)
             {
                 for (i = 0; i < currentPositionBall.Length; i++)
                 {
@@ -267,10 +270,21 @@ namespace Billiards
                     {
                         if (!CheckCollision(i))
                         {
-                            ApplyFrictionVelocityBall(i);
                             currentPositionBall[i] += currentVelocityBall[i];
                             currentExcludeLine[i] = -1;
                         }
+                    }
+                }
+            }
+            for (i = 0; i < currentPositionBall.Length; i++)
+            {
+                if (IsBallMoving(i))
+                {
+                    if (!CheckCollision(i))
+                    {
+                        ApplyFrictionVelocityBall(i);
+                        currentPositionBall[i] += currentVelocityBall[i];
+                        currentExcludeLine[i] = -1;
                     }
                 }
             }
@@ -287,7 +301,7 @@ namespace Billiards
         {
             if (IsBallMoving(serial))
             {
-                float raito = 1 - friction / math.sqrt(currentVelocityBall[serial].x * currentVelocityBall[serial].x + currentVelocityBall[serial].z * currentVelocityBall[serial].z);
+                float raito = 0.99f;
                 if (raito > 0)
                 {
                     currentVelocityBall[serial].x *= raito;
@@ -329,13 +343,15 @@ namespace Billiards
             {
                 if (serial != ramdomSerial[i] && ramdomSerial[i] != excludeCheck)
                 {
-                    if (IsCollisionBall(currentPositionBall[serial] + currentVelocityBall[serial], currentPositionBall[ramdomSerial[i]]))
+                    if (IsCollisionBall(currentPositionBall[serial] + currentMoveAtCollisionBall[serial], currentPositionBall[ramdomSerial[i]] + currentMoveAtCollisionBall[ramdomSerial[i]]))
                     {
                         StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[ramdomSerial[i]], currentVelocityBall[serial], currentVelocityBall[ramdomSerial[i]],
                             out bool isHitBall, out positionHit, ref currentVelocityBall[serial], ref currentVelocityBall[ramdomSerial[i]]);
                         if (isHitBall)
                         {
                             isHit = true;
+                            currentMoveAtCollisionBall[serial] = 0;
+                            currentMoveAtCollisionBall[ramdomSerial[i]] = currentVelocityBall[ramdomSerial[i]];
                             currentPositionBall[serial] = positionHit;
                             isApplyFriction[ramdomSerial[i]] = false;
                             currentExcludeLine[serial] = -1;
