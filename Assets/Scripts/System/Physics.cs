@@ -1,6 +1,7 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
+using Unity.Physics.Extensions;
 using Unity.Tiny;
 using Unity.Tiny.Input;
 using Unity.Transforms;
@@ -289,10 +290,12 @@ namespace Billiards
                 }
             }
             i = 0;
-            Entities.ForEach((ref Ball ball, ref PhysicsVelocity velocity, ref Translation posistion) =>
+            float3 rotation = float3.zero;
+            Entities.ForEach((ref Ball ball , ref Translation posistion, ref Rotation rot, ref PhysicsVelocity physicsVelocity, ref PhysicsMass physicsMass) =>
             {
-                //float3 vector = new float3((currentVelocityBall[i].z / (0.32f * math.PI)) * 1000, 0, -(currentVelocityBall[i].x / (0.32f * math.PI)) * 1000);
-                //velocity.Angular = vector;
+                rotation.x = currentVelocityBall[i].z * 1600;
+                rotation.z = -currentVelocityBall[i].x * 1600;
+                physicsVelocity.SetAngularVelocityWorldSpace(physicsMass, rot, rotation);
                 posistion.Value = currentPositionBall[i++];
             }).WithoutBurst().Run();
         }
