@@ -22,7 +22,7 @@
         },
         {
             "$type": "Unity.Build.Web.DotsRuntime.WasmOutputSettings, Unity.Build.Web.DotsRuntime",
-            "OutputSingleHTMLFile": false,
+            "OutputSingleHTMLFile": true,
             "MinifyHTMLFile": true,
             "MinifyOutputWithClosure": false,
             "EmbedCpuProfiler": false,

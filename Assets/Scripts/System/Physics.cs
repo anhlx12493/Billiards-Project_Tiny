@@ -22,10 +22,12 @@ namespace Billiards
         private float3[] currentPositionBall;
         private float3[] currentVelocityBall;
         private float3[] currentMoveAtCollisionBall;
-        private float3[] currentAngularVelocityBall;
+        private float3[] currentRotationBall;
+
 
         private int[] currentExcludeLine;
         private int[] ramdomSerial;
+        private int[] timesFallInPocket;
 
         private int[] softIdByPositionXBallAtSerial;
         private int[] softIdByPositionXBallAtElement;
@@ -33,6 +35,7 @@ namespace Billiards
         private int[] softIdByPositionZBallAtElement;
 
         private bool[] isApplyFriction;
+        private bool[] isInPocket;
 
         private float3[] BoardLine;
         private float3[] BoardLineNormalInside;
@@ -142,11 +145,13 @@ namespace Billiards
             random = new Random(1);
             currentPositionBall = new float3[count];
             currentVelocityBall = new float3[count];
+            currentRotationBall = new float3[count];
             currentMoveAtCollisionBall = new float3[count];
-            currentAngularVelocityBall = new float3[count];
+            isInPocket = new bool[count];
             isApplyFriction = new bool[count];
             currentExcludeLine = new int[count];
             ramdomSerial = new int[count];
+            timesFallInPocket = new int[count];
             for (int i = 0; i < count; i++)
             {
                 currentExcludeLine[i] = -1;
@@ -264,6 +269,7 @@ namespace Billiards
             }
             for (int loop = 0; loop < 5; loop++)
             {
+                HandlePocket();
                 for (i = 0; i < currentPositionBall.Length; i++)
                 {
                     UpdateRandomSerial(3);
@@ -277,6 +283,7 @@ namespace Billiards
                     }
                 }
             }
+            HandlePocket();
             for (i = 0; i < currentPositionBall.Length; i++)
             {
                 if (IsBallMoving(i))
@@ -290,12 +297,41 @@ namespace Billiards
                 }
             }
             i = 0;
-            float3 rotation = float3.zero;
             Entities.ForEach((ref Ball ball , ref Translation posistion, ref Rotation rot, ref PhysicsVelocity physicsVelocity, ref PhysicsMass physicsMass) =>
             {
-                rotation.x = currentVelocityBall[i].z * 1600;
-                rotation.z = -currentVelocityBall[i].x * 1600;
-                physicsVelocity.SetAngularVelocityWorldSpace(physicsMass, rot, rotation);
+                if (currentRotationBall[i].x < currentVelocityBall[i].z)
+                {
+                    currentRotationBall[i].x += 0.001f;
+                    if (currentRotationBall[i].x > currentVelocityBall[i].z)
+                    {
+                        currentRotationBall[i].x = currentVelocityBall[i].z;
+                    }
+                }
+                else if (currentRotationBall[i].x > currentVelocityBall[i].z)
+                {
+                    currentRotationBall[i].x -= 0.01f;
+                    if (currentRotationBall[i].x < currentVelocityBall[i].z)
+                    {
+                        currentRotationBall[i].x = currentVelocityBall[i].z;
+                    }
+                }
+                if (currentRotationBall[i].z < -currentVelocityBall[i].x)
+                {
+                    currentRotationBall[i].z += 0.001f;
+                    if (currentRotationBall[i].z > -currentVelocityBall[i].x)
+                    {
+                        currentRotationBall[i].z = -currentVelocityBall[i].x;
+                    }
+                }
+                else if (currentRotationBall[i].z > -currentVelocityBall[i].x)
+                {
+                    currentRotationBall[i].z -= 0.01f;
+                    if (currentRotationBall[i].z < -currentVelocityBall[i].x)
+                    {
+                        currentRotationBall[i].z = -currentVelocityBall[i].x;
+                    }
+                }
+                physicsVelocity.SetAngularVelocityWorldSpace(physicsMass, rot, currentRotationBall[i] * 1600);
                 posistion.Value = currentPositionBall[i++];
             }).WithoutBurst().Run();
         }
@@ -315,6 +351,45 @@ namespace Billiards
                     currentVelocityBall[serial] = float3.zero;
                 }
             }
+        }
+
+        private void HandlePocket()
+        {
+            int i;
+            float radiusPocket;
+            Entities.ForEach((ref Pocket pocket, ref Translation posistion, ref NonUniformScale scale) =>
+            {
+                radiusPocket = scale.Value.x * 0.5f;
+                for (i = 0; i < currentPositionBall.Length; i++)
+                {
+                    if (isInPocket[i])
+                    {
+                        if (timesFallInPocket[i]++ > 5000)
+                        {
+                            currentVelocityBall[i] = float3.zero;
+                        }
+                        else
+                        if (timesFallInPocket[i] > 200)
+                        { 
+                            currentVelocityBall[i] += StaticFuntion.GetResizeVector2(pocket.directionGoInsideBoard, 0.0001f);
+                        }
+                        currentPositionBall[i].y = -5f;
+                    }
+                    else
+                    {
+                        if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < (radiusPocket - radiusBall) * (radiusPocket - radiusBall))
+                        {
+                            isInPocket[i] = true;
+                            currentPositionBall[i].y = -5f;
+                        }
+                        else
+                        if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < radiusPocket * radiusPocket)
+                        {
+                            currentVelocityBall[i] += StaticFuntion.GetResizeVector2(posistion.Value - currentPositionBall[i], 0.00001f);
+                        }
+                    }
+                }
+            }).WithoutBurst().Run();
         }
 
         private void UpdateRandomSerial(int rollTimes)
@@ -342,25 +417,28 @@ namespace Billiards
             float3 positionHit;
             bool isHit = false;
 
-            for (int i = 0; i < currentPositionBall.Length; i++)
+            if (!isInPocket[serial])
             {
-                if (serial != ramdomSerial[i] && ramdomSerial[i] != excludeCheck)
+                for (int i = 0; i < currentPositionBall.Length; i++)
                 {
-                    if (IsCollisionBall(currentPositionBall[serial] + currentMoveAtCollisionBall[serial], currentPositionBall[ramdomSerial[i]] + currentMoveAtCollisionBall[ramdomSerial[i]]))
+                    if (!isInPocket[ramdomSerial[i]] && serial != ramdomSerial[i] && ramdomSerial[i] != excludeCheck)
                     {
-                        StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[ramdomSerial[i]], currentVelocityBall[serial], currentVelocityBall[ramdomSerial[i]],
-                            out bool isHitBall, out positionHit, ref currentVelocityBall[serial], ref currentVelocityBall[ramdomSerial[i]]);
-                        if (isHitBall)
+                        if (IsCollisionBall(currentPositionBall[serial] + currentMoveAtCollisionBall[serial], currentPositionBall[ramdomSerial[i]] + currentMoveAtCollisionBall[ramdomSerial[i]]))
                         {
-                            isHit = true;
-                            currentMoveAtCollisionBall[serial] = 0;
-                            currentMoveAtCollisionBall[ramdomSerial[i]] = currentVelocityBall[ramdomSerial[i]];
-                            currentPositionBall[serial] = positionHit;
-                            isApplyFriction[ramdomSerial[i]] = false;
-                            currentExcludeLine[serial] = -1;
-                            currentExcludeLine[ramdomSerial[i]] = -1;
-                            CheckCollision(serial, ramdomSerial[i]);
-                            CheckCollision(ramdomSerial[i],serial);
+                            StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[ramdomSerial[i]], currentVelocityBall[serial], currentVelocityBall[ramdomSerial[i]],
+                                out bool isHitBall, out positionHit, ref currentVelocityBall[serial], ref currentVelocityBall[ramdomSerial[i]]);
+                            if (isHitBall)
+                            {
+                                isHit = true;
+                                currentMoveAtCollisionBall[serial] = 0;
+                                currentMoveAtCollisionBall[ramdomSerial[i]] = currentVelocityBall[ramdomSerial[i]];
+                                currentPositionBall[serial] = positionHit;
+                                isApplyFriction[ramdomSerial[i]] = false;
+                                currentExcludeLine[serial] = -1;
+                                currentExcludeLine[ramdomSerial[i]] = -1;
+                                CheckCollision(serial, ramdomSerial[i]);
+                                CheckCollision(ramdomSerial[i], serial);
+                            }
                         }
                     }
                 }
