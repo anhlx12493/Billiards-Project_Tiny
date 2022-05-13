@@ -10,11 +10,14 @@ namespace Billiards
 {
     public class Physics : SystemBase
     {
+        public static Physics Instance;
+
         private static float friction;
         private static float frictionSurface;
         private static float radiusBall;
         private static float diameterBall;
         public static float powDiameterBall;
+        public bool IsAnyBallMoving { get; private set; }
 
 
         private bool isLoadedSetting;
@@ -37,10 +40,17 @@ namespace Billiards
         private bool[] isApplyFriction;
         private bool[] isInPocket;
 
+        private Pocket[] inPocket;
+
         private float3[] BoardLine;
         private float3[] BoardLineNormalInside;
 
         private Random random;
+
+        protected override void OnStartRunning()
+        {
+            Instance = this;
+        }
 
         protected override void OnUpdate()
         {
@@ -149,6 +159,7 @@ namespace Billiards
             currentMoveAtCollisionBall = new float3[count];
             isInPocket = new bool[count];
             isApplyFriction = new bool[count];
+            inPocket = new Pocket[count];
             currentExcludeLine = new int[count];
             ramdomSerial = new int[count];
             timesFallInPocket = new int[count];
@@ -284,6 +295,7 @@ namespace Billiards
                 }
             }
             HandlePocket();
+            IsAnyBallMoving = false;
             for (i = 0; i < currentPositionBall.Length; i++)
             {
                 if (IsBallMoving(i))
@@ -293,6 +305,10 @@ namespace Billiards
                         ApplyFrictionVelocityBall(i);
                         currentPositionBall[i] += currentVelocityBall[i];
                         currentExcludeLine[i] = -1;
+                    }
+                    if (!isInPocket[i])
+                    {
+                        IsAnyBallMoving = true;
                     }
                 }
             }
@@ -336,19 +352,38 @@ namespace Billiards
             }).WithoutBurst().Run();
         }
 
+        public void SetPositionCueBall(float3 moveTo)
+        {
+            bool isCueBall = true;
+            Entities.ForEach((ref Ball ball, ref Translation posistion) =>
+            {
+                if (isCueBall)
+                {
+                    isCueBall = false;
+                    posistion.Value = moveTo;
+                    currentPositionBall[0] = moveTo;
+                }
+            }).WithoutBurst().Run();
+        }
+
         private void ApplyFrictionVelocityBall(int serial)
         {
             if (IsBallMoving(serial))
             {
-                float raito = 0.99f;
-                if (raito > 0)
+                float powPower = StaticFuntion.GetSizeVector(currentVelocityBall[serial]);
+                float friction;
+                if (powPower < 0.0001f)
                 {
-                    currentVelocityBall[serial].x *= raito;
-                    currentVelocityBall[serial].z *= raito;
+                    currentVelocityBall[serial].x = 0;
+                    currentVelocityBall[serial].z = 0;
                 }
                 else
                 {
-                    currentVelocityBall[serial] = float3.zero;
+                    //friction = math.clamp(1f - 0.00001f / powPower, 0f, 1f) * 0.995f;
+                    friction = 0.99f;
+                    //StaticFuntion.ResizeVector2(ref currentVelocityBall[serial], math.clamp(powPower - 0.0001f, 0, powPower));
+                    currentVelocityBall[serial].x *= friction;
+                    currentVelocityBall[serial].z *= friction;
                 }
             }
         }
@@ -362,25 +397,13 @@ namespace Billiards
                 radiusPocket = scale.Value.x * 0.5f;
                 for (i = 0; i < currentPositionBall.Length; i++)
                 {
-                    if (isInPocket[i])
-                    {
-                        if (timesFallInPocket[i]++ > 5000)
-                        {
-                            currentVelocityBall[i] = float3.zero;
-                        }
-                        else
-                        if (timesFallInPocket[i] > 200)
-                        { 
-                            currentVelocityBall[i] += StaticFuntion.GetResizeVector2(pocket.directionGoInsideBoard, 0.0001f);
-                        }
-                        currentPositionBall[i].y = -5f;
-                    }
-                    else
+                    if (!isInPocket[i])
                     {
                         if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < (radiusPocket - radiusBall) * (radiusPocket - radiusBall))
                         {
                             isInPocket[i] = true;
                             currentPositionBall[i].y = -5f;
+                            inPocket[i] = pocket;
                         }
                         else
                         if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < radiusPocket * radiusPocket)
@@ -390,6 +413,22 @@ namespace Billiards
                     }
                 }
             }).WithoutBurst().Run();
+            for (i = 0; i < currentPositionBall.Length; i++)
+            {
+                if (isInPocket[i])
+                {
+                    if (timesFallInPocket[i]++ > 400)
+                    {
+                        currentVelocityBall[i] = float3.zero;
+                    }
+                    else
+                    if (timesFallInPocket[i] > 70)
+                    {
+                        currentVelocityBall[i] += StaticFuntion.GetResizeVector2(inPocket[i].directionGoInsideBoard, 0.00003f);
+                    }
+                    currentPositionBall[i].y = -5f;
+                }
+            }
         }
 
         private void UpdateRandomSerial(int rollTimes)
@@ -484,6 +523,10 @@ namespace Billiards
                 currentVelocityBall[serial] = positionDrop - positionHit;
                 currentPositionBall[serial] = positionHit;
                 currentExcludeLine[serial] = serialBoadLine;
+                if (isInPocket[serial])
+                {
+                    currentVelocityBall[serial] *= 0.1f;
+                }
             }
             else
             {
@@ -539,6 +582,41 @@ namespace Billiards
                             closestPositionHit = positionHit;
                             serialBoadLine = i;
                         }
+                    }
+                }
+            }
+            positionHit = closestPositionHit;
+        }
+
+        public void GetRaycastHitPositionBallToBoardLine(float3 position, float3 direction, out bool isHit, out float3 positionHit)
+        {
+            float3 nextPositionBall = position + StaticFuntion.GetResizeVector2(direction, 1000);
+            float3 closestPositionHit = float3.zero;
+            isHit = false;
+            bool currentCheckHit;
+            bool isFirstHit = true;
+            GetHitPositionLineToLine(position, nextPositionBall, BoardLine[BoardLine.Length - 1], BoardLine[0], out currentCheckHit, out positionHit);
+            if (currentCheckHit)
+            {
+                if (isFirstHit || math.abs(closestPositionHit.x - position.x) > math.abs(positionHit.x - position.x) ||
+                math.abs(closestPositionHit.z - position.z) > math.abs(positionHit.z - position.z))
+                {
+                    isFirstHit = false;
+                    isHit = true;
+                    closestPositionHit = positionHit;
+                }
+            }
+            for (int i = 0; i < BoardLine.Length - 1; i++)
+            {
+                GetHitPositionLineToLine(position, nextPositionBall, BoardLine[i], BoardLine[i + 1], out currentCheckHit, out positionHit);
+                if (currentCheckHit)
+                {
+                    if (isFirstHit || math.abs(closestPositionHit.x - position.x) > math.abs(positionHit.x - position.x) ||
+                    math.abs(closestPositionHit.z - position.z) > math.abs(positionHit.z - position.z))
+                    {
+                        isFirstHit = false;
+                        isHit = true;
+                        closestPositionHit = positionHit;
                     }
                 }
             }

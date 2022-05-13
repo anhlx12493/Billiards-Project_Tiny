@@ -1,89 +1,830 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using System;
 using Unity.Tiny.Input;
 using Unity.Tiny.UI;
 using Unity.Tiny;
+using Unity.Physics;
+using Unity.Tiny.Rendering;
 
 namespace Billiards
 {
+    [UpdateAfter(typeof(UIController))]
     public class GameController : SystemBase
     {
+        public const float BOARD_BORDER_TOP = 3.18f;
+        public const float BOARD_BORDER_LEFT = -5f;
+        public const float BOARD_BORDER_RIGHT = 5f;
+        public const float BOARD_BORDER_BOTTOM = -2.87f;
 
-        private float radius = 0.1024f;
+        public const float BORDER_HAND_MOVE_TOP = 2.3f;
+        public const float BORDER_HAND_MOVE_LEFT = -4.6f;
+        public const float BORDER_HAND_MOVE_RIGHT = 4.6f;
+        public const float BORDER_BREAK_SHOT_HAND_MOVE_RIGHT = -2.4f;
+        public const float BORDER_HAND_MOVE_BOTTOM = -2.0f;
+
+        private const float MAX_POWER = 0.1f;
+
+        public enum BallInHand { none, BreakShot, Free };
+
+        private InputSystem Input;
+        private bool isPowerUp;
+        private bool isAdjustBar;
+        private bool isAdjustBoard;
+        private bool isShowGuide = true;
+        private bool isDrag;
+        private bool isBallInHandMoving;
+        private bool isShoot;
+        private bool isLastShoot;
+        private bool isAnyBallMoving;
+        private bool isSmoothRotating;
+        private bool isCueBallInPocket;
+        private bool isGlowOpacityUp;
+        private bool isUpdateTarget = true;
+        private bool isAbleShowGlow = true;
+        private bool[] isTargetBalls = new bool[16];
+        private float3 firstWorldPositionPower;
+        private float3 lastWorldPositionAdjust;
+        private float3 direction = new float3(1, 0, 0);
+        private float3 targetDirection;
+        private float3 mousePosition;
+        private float3 positionCueBall;
+        private float3 lastMousePosition;
+        private float power;
+        private float timeMouseUpCheckDrag;
+        private float speedSmoothRotate;
+        private float numberShowGlow = 19;
+        private BallInHand ballInHand = BallInHand.BreakShot;
+
+        protected override void OnStartRunning()
+        {
+            Input = World.GetExistingSystem<InputSystem>();
+        }
 
         protected override void OnUpdate()
         {
-            var Input = World.GetExistingSystem<InputSystem>();
-
-            var posCueBall = GetPositionCueBall();
-            var canvas = EntityManager.GetComponentData<RectTransform>(GetSingletonEntity<MainCanvas>());
-            var posClick = Input.GetInputPosition();
-            float x = 10 * (canvas.SizeDelta.x / canvas.SizeDelta.y);
-            float3 worldClick = float3.zero;
-            worldClick.x = (posClick.x / canvas.SizeDelta.x) * x - x / 2f;
-            worldClick.z = (posClick.y / canvas.SizeDelta.y) * 10 - 5;
-            //ShowGuide((worldClick - posCueBall));
+            HandleInput();
+            HandleRule();
+            if (!isCueBallInPocket)
+            {
+                HandleMoveBallInHand();
+                HandlePower();
+                HandleAdjust();
+                HandleGuide();
+                HandleShoot();
+                if (!isAnyBallMoving)
+                {
+                    HandleShowGlow();
+                }
+            }
         }
 
-        private void FixRadius()
+        private void HandleRule()
         {
-
+            //if (positionCueBall.y < -5f)
+            //{
+            //    isCueBallInPocket = true;
+            //    if (!isAnyBallMoving && !BallController.Instance.isBallStillRollingOnPack)
+            //    {
+            //        isCueBallInPocket = false;
+            //        ballInHand = BallInHand.Free;
+            //        SetCueBall(new float3(0, 3, 0), float3.zero, float3.zero);
+            //        BallController.Instance.GetBallOutOfTrack(0);
+            //    }
+            //}
+            if (isUpdateTarget)
+            {
+                isUpdateTarget = false;
+                int i = 0;
+                Entities.ForEach((ref Ball ball, ref Translation position) =>
+                {
+                    if (position.Value.y > -1)
+                    {
+                        isTargetBalls[i++] = true;
+                    }
+                    else
+                    {
+                        isTargetBalls[i++] = false;
+                    }
+                }).WithoutBurst().Run();
+                isTargetBalls[0] = false;
+            }
+            else
+                if (!isAnyBallMoving)
+            {
+                isUpdateTarget = true;
+                isAbleShowGlow = true;
+            }
         }
+
+        private void HandleInput()
+        {
+            mousePosition = UIController.WorldMousePosition;
+            positionCueBall = GetPositionCueBall();
+            if (Input.GetMouseButtonDown(0))
+            {
+                isDrag = false;
+                timeMouseUpCheckDrag = 0;
+            }
+            else if (Input.GetMouseButton(0))
+            {
+                if (timeMouseUpCheckDrag > 0.2f || StaticFuntion.GetPowSizeVector2(lastMousePosition - mousePosition) > 0.03f)
+                {
+                    isDrag = true;
+                }
+                timeMouseUpCheckDrag += Time.DeltaTime;
+            }
+            isAnyBallMoving = Physics.Instance.IsAnyBallMoving;
+            lastMousePosition = mousePosition;
+        }
+
+        private void HandleGuide()
+        {
+            int i;
+            if (isShowGuide && !isBallInHandMoving && !isCueBallInPocket)
+            {
+                if (Input.GetMouseButtonUp(0) && !isDrag && !isPowerUp && !isAdjustBar && !isPowerUp)
+                {
+                    float3 closestPostion = new float3(1000, 0, 1000);
+                    bool isHaveBall = false;
+                    i = 0;
+                    Entities.ForEach((ref Ball ball, ref Translation position) =>
+                    {
+                        if (i++ != 0)
+                        {
+                            if (StaticFuntion.IsCollisionBall(position.Value, mousePosition))
+                            {
+                                isHaveBall = true;
+                                if (StaticFuntion.GetPowSizeVector2(closestPostion - mousePosition) > StaticFuntion.GetPowSizeVector2(position.Value - mousePosition))
+                                {
+                                    closestPostion = position.Value;
+                                }
+                            }
+                        }
+                    }).WithoutBurst().Run();
+                    if (isHaveBall)
+                    {
+                        targetDirection = closestPostion - positionCueBall;
+                        isSmoothRotating = true;
+                        speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
+                    }
+                    else
+                    {
+                        var posCueBall = positionCueBall;
+                        targetDirection = mousePosition - posCueBall;
+                        isSmoothRotating = true;
+                        speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
+                    }
+                }
+                ShowGuide(direction);
+                if (isSmoothRotating)
+                {
+                    float currentAngle = StaticFuntion.GetAngle(direction, targetDirection);
+                    if (math.abs(currentAngle) > math.abs(speedSmoothRotate))
+                    {
+                        StaticFuntion.RotateVectorWithoutSize2(ref direction, speedSmoothRotate);
+                    }
+                    else
+                    {
+                        direction = targetDirection;
+                        isSmoothRotating = false;
+                    }
+                }
+            }
+            else
+            {
+                HideGuide();
+            }
+        }
+
+        private void HandlePower()
+        {
+            float top;
+            float left;
+            float right;
+            float bottom;
+            float sizeZ = 4f;
+            top = left = right = bottom = 0;
+            bool isFirst = true;
+            Entities.ForEach((ref UIObject uiObject, ref Translation position) =>
+            {
+                if (isFirst)
+                {
+                    isFirst = false;
+                    top = uiObject.size.z / 2f + position.Value.z;
+                    left = -uiObject.size.x / 2f + position.Value.x;
+                    right = uiObject.size.x / 2f + position.Value.x;
+                    bottom = -uiObject.size.z / 2f + position.Value.z;
+                }
+            }).WithoutBurst().Run();
+            if (Input.GetMouseButtonDown(0))
+            {
+                if (mousePosition.x > left && mousePosition.x < right && mousePosition.z > bottom && mousePosition.z < top)
+                {
+                    isPowerUp = true;
+                    firstWorldPositionPower = mousePosition;
+                }
+            }
+            else if (Input.GetMouseButton(0))
+            {
+                if (isPowerUp)
+                {
+                    isFirst = true;
+                    Entities.ForEach((ref Slider slider, ref NonUniformScale scale) =>
+                    {
+                        if (isFirst)
+                        {
+                            isFirst = false;
+                            scale.Value.z = math.clamp((mousePosition.z - firstWorldPositionPower.z) / sizeZ + 1f, 0f, 1f);
+                            power = (1 - scale.Value.z) * MAX_POWER;
+                        }
+                    }).WithoutBurst().Run();
+                }
+            }
+            else if (Input.GetMouseButtonUp(0))
+            {
+                if (isPowerUp)
+                {
+                    isPowerUp = false;
+                    isShowGuide = false;
+                    if (power > 0)
+                    {
+                        isShoot = true;
+                        isLastShoot = true;
+                        ballInHand = BallInHand.none;
+                    }
+                    isFirst = true;
+                    Entities.ForEach((ref Slider slider, ref NonUniformScale scale) =>
+                    {
+                        if (isFirst)
+                        {
+                            isFirst = false;
+                            scale.Value.z = 0.999f;
+                        }
+                    }).WithoutBurst().Run();
+                }
+            }
+        }
+
+        private void HandleAdjust()
+        {
+            if (isBallInHandMoving)
+            {
+                return;
+            }
+            float top;
+            float left;
+            float right;
+            float bottom;
+            float sizeZ;
+            sizeZ = top = left = right = bottom = 0;
+            int serial = 0;
+            float adjustUp;
+            Entities.ForEach((ref UIObject uiObject, ref Translation position) =>
+            {
+                if (serial++ == 1)
+                {
+                    top = uiObject.size.z / 2f + position.Value.z;
+                    left = -uiObject.size.x / 2f + position.Value.x;
+                    right = uiObject.size.x / 2f + position.Value.x;
+                    bottom = -uiObject.size.z / 2f + position.Value.z;
+                    sizeZ = uiObject.size.z;
+                }
+            }).WithoutBurst().Run();
+            if (Input.GetMouseButtonDown(0))
+            {
+                if (mousePosition.x > left && mousePosition.x < right && mousePosition.z > bottom && mousePosition.z < top)
+                {
+                    isAdjustBar = true;
+                    lastWorldPositionAdjust = mousePosition;
+                }
+                else if (!isAdjustBar && !isPowerUp)
+                {
+                    isAdjustBoard = true;
+                    lastWorldPositionAdjust = mousePosition;
+                }
+            }
+            else if (Input.GetMouseButton(0))
+            {
+                if (isAdjustBar)
+                {
+                    serial = 0;
+                    adjustUp = mousePosition.z - lastWorldPositionAdjust.z;
+                    StaticFuntion.RotateVectorWithoutSize2(ref direction, adjustUp * 0.1f);
+                    lastWorldPositionAdjust = mousePosition;
+                }
+                else if (isAdjustBoard)
+                {
+                    adjustUp = StaticFuntion.GetAngle(lastWorldPositionAdjust - positionCueBall, mousePosition - positionCueBall);
+                    StaticFuntion.RotateVectorWithoutSize2(ref direction, adjustUp * 0.1f);
+                    lastWorldPositionAdjust = mousePosition;
+                }
+            }
+            else if (Input.GetMouseButtonUp(0))
+            {
+                isAdjustBoard = isAdjustBar = false;
+            }
+        }
+
+        private void HandleMoveBallInHand()
+        {
+            int i;
+            switch (ballInHand)
+            {
+                case BallInHand.BreakShot:
+                    if (Input.GetMouseButtonDown(0))
+                    {
+                        if (StaticFuntion.IsCollisionBall(mousePosition, positionCueBall, 0.2f))
+                        {
+                            isBallInHandMoving = true;
+                            ShowHandMoveFeild();
+                        }
+                        HideHandHold();
+                    }
+                    else if (Input.GetMouseButton(0))
+                    {
+                        float3 targetPosition = mousePosition;
+                        if (isBallInHandMoving && isDrag)
+                        {
+                            if (targetPosition.x < BORDER_HAND_MOVE_LEFT)
+                            {
+                                targetPosition.x = BORDER_HAND_MOVE_LEFT;
+                            }
+                            if (targetPosition.x > BORDER_BREAK_SHOT_HAND_MOVE_RIGHT)
+                            {
+                                targetPosition.x = BORDER_BREAK_SHOT_HAND_MOVE_RIGHT;
+                            }
+                            if (targetPosition.z < BORDER_HAND_MOVE_BOTTOM)
+                            {
+                                targetPosition.z = BORDER_HAND_MOVE_BOTTOM;
+                            }
+                            if (targetPosition.z > BORDER_HAND_MOVE_TOP)
+                            {
+                                targetPosition.z = BORDER_HAND_MOVE_TOP;
+                            }
+                            SetPositionCueBall(targetPosition);
+                            positionCueBall = targetPosition;
+                            ShowHandMove();
+                        }
+                    }
+                    else if (Input.GetMouseButtonUp(0))
+                    {
+                        isBallInHandMoving = false;
+                        HideHandMoveFeild();
+                    }
+                    else
+                    {
+                        ShowHandHold();
+                        HideHandMove();
+                    }
+                    break;
+                case BallInHand.Free:
+                    if (Input.GetMouseButtonDown(0))
+                    {
+                        if (StaticFuntion.IsCollisionBall(mousePosition, positionCueBall, 0.2f))
+                        {
+                            isBallInHandMoving = true;
+                            ShowHandMoveFeild();
+                        }
+                        HideHandHold();
+                    }
+                    else if (Input.GetMouseButton(0))
+                    {
+                        float3 targetPosition = mousePosition;
+                        if (isBallInHandMoving && isDrag)
+                        {
+                            if (targetPosition.x < BORDER_HAND_MOVE_LEFT)
+                            {
+                                targetPosition.x = BORDER_HAND_MOVE_LEFT;
+                            }
+                            if (targetPosition.x > BORDER_HAND_MOVE_RIGHT)
+                            {
+                                targetPosition.x = BORDER_HAND_MOVE_RIGHT;
+                            }
+                            if (targetPosition.z < BORDER_HAND_MOVE_BOTTOM)
+                            {
+                                targetPosition.z = BORDER_HAND_MOVE_BOTTOM;
+                            }
+                            if (targetPosition.z > BORDER_HAND_MOVE_TOP)
+                            {
+                                targetPosition.z = BORDER_HAND_MOVE_TOP;
+                            }
+                            bool isHitAnyBall = false;
+                            i = 0;
+                            Entities.ForEach((ref Ball ball, ref Translation position) =>
+                            {
+                                if (i++ != 0)
+                                {
+                                    if (!isHitAnyBall && StaticFuntion.IsCollisionBall(targetPosition, position.Value))
+                                    {
+                                        isHitAnyBall = true;
+                                    }
+                                }
+                            }).WithoutBurst().Run();
+                            if (!isHitAnyBall)
+                            {
+                                SetPositionCueBall(targetPosition);
+                                positionCueBall = targetPosition;
+                            }
+                            ShowHandMove();
+                        }
+                    }
+                    else if (Input.GetMouseButtonUp(0))
+                    {
+                        isBallInHandMoving = false;
+                        HideHandMoveFeild();
+                    }
+                    else
+                    {
+                        ShowHandHold();
+                        HideHandMove();
+                    }
+                    break;
+            }
+        }
+
+        private void HandleShoot()
+        {
+            if (isAnyBallMoving)
+            {
+                isShoot = false;
+            }
+            else
+            {
+                if (isShoot)
+                {
+                    if (!HittingCue())
+                    {
+                        isShoot = false;
+                        HideCue();
+                        HitCueBall(StaticFuntion.GetResizeVector2(direction, power));
+                        power = 0;
+                        HideAllGlows();
+                    }
+                }
+                else
+                {
+                    if (isBallInHandMoving)
+                    {
+                        HideCue();
+                    }
+                    else
+                    {
+                        ShowCue();
+                    }
+                    if (!isShowGuide)
+                    {
+                        if (isLastShoot)
+                        {
+                            isLastShoot = false;
+                            direction = GetPositionClosestTargetBall() - positionCueBall;
+                        }
+                        isSmoothRotating = false;
+                        isShowGuide = true;
+                        ShowCue();
+                        HideCue();
+                        ShowGuide(direction);
+                        HideGuide();
+                    }
+                }
+            }
+        }
+
+
+        private void HandleShowGlow()
+        {
+            if (isAbleShowGlow)
+            {
+                Entity mat = Entity.Null;
+                if (isGlowOpacityUp)
+                {
+                    if (numberShowGlow > 0)
+                    {
+                        numberShowGlow -= 0.5f;
+                    }
+                    else
+                    {
+                        isGlowOpacityUp = false;
+                    }
+                }
+                else
+                {
+                    if (numberShowGlow < 19)
+                    {
+                        numberShowGlow += 0.5f;
+                    }
+                    else
+                    {
+                        isGlowOpacityUp = true;
+                    }
+                }
+                int i = 0;
+                Entities.ForEach((ref GlowShare glow, ref MeshRenderer meshRenderer) =>
+                {
+                    if (i++ == (int)numberShowGlow)
+                    {
+                        mat = meshRenderer.material;
+                    }
+
+                }).WithoutBurst().Run();
+                i = 0;
+                Entities.ForEach((ref Glow glow, ref MeshRenderer meshRenderer, ref Translation position) =>
+                {
+                    if (isTargetBalls[i++])
+                    {
+                        meshRenderer.material = mat;
+                        position.Value.y = 0;
+                    }
+                    else
+                    {
+                        position.Value.y = 1000;
+                    }
+                }).WithoutBurst().Run();
+            }
+        }
+
+        private void HitCueBall(float3 force)
+        {
+            bool isCueBall = true;
+            Entities.ForEach((ref Ball ball) =>
+            {
+                if (isCueBall)
+                {
+                    isCueBall = false;
+                    ball.addForce = force;
+                }
+            }).WithBurst().Run();
+        }
+
+        private void HideAllGlows()
+        {
+            isAbleShowGlow = false;
+            numberShowGlow = 19;
+            isGlowOpacityUp = true;
+            Entities.ForEach((ref Glow glow, ref Translation position) =>
+            {
+                position.Value.y = 1000;
+            }).WithoutBurst().Run();
+        }
+
+        private void ShowHandMoveFeild()
+        {
+            switch (ballInHand)
+            {
+                case BallInHand.BreakShot:
+                    Entities.ForEach((ref HandMoveFeild moveFeild, ref Translation position, ref NonUniformScale scale) =>
+                    {
+                        position.Value.x = (BORDER_BREAK_SHOT_HAND_MOVE_RIGHT + BORDER_HAND_MOVE_LEFT) / 2f;
+                        position.Value.z = (BORDER_HAND_MOVE_TOP + BORDER_HAND_MOVE_BOTTOM) / 2f;
+                        scale.Value.x = (BORDER_BREAK_SHOT_HAND_MOVE_RIGHT - BORDER_HAND_MOVE_LEFT) * 0.1f;
+                        scale.Value.z = (BORDER_HAND_MOVE_TOP - BORDER_HAND_MOVE_BOTTOM) * 0.1f;
+                    }).WithoutBurst().Run();
+                    break;
+                case BallInHand.Free:
+                    Entities.ForEach((ref HandMoveFeild moveFeild, ref Translation position, ref NonUniformScale scale) =>
+                    {
+                        position.Value.x = (BORDER_HAND_MOVE_RIGHT + BORDER_HAND_MOVE_LEFT) / 2f;
+                        position.Value.z = (BORDER_HAND_MOVE_TOP + BORDER_HAND_MOVE_BOTTOM) / 2f;
+                        scale.Value.x = (BORDER_HAND_MOVE_RIGHT - BORDER_HAND_MOVE_LEFT) * 0.1f;
+                        scale.Value.z = (BORDER_HAND_MOVE_TOP - BORDER_HAND_MOVE_BOTTOM) * 0.1f;
+                    }).WithoutBurst().Run();
+                    break;
+            }
+        }
+
+        private void HideHandMoveFeild()
+        {
+            switch (ballInHand)
+            {
+                case BallInHand.none:
+                    break;
+                default:
+                    Entities.ForEach((ref HandMoveFeild moveFeild, ref Translation position) =>
+                    {
+                        position.Value.x = 1000;
+                    }).WithoutBurst().Run();
+                    break;
+            }
+        }
+
+        private void ShowHandHold()
+        {
+            switch (ballInHand)
+            {
+                case BallInHand.none:
+                    break;
+                default:
+                    Entities.ForEach((ref Hand hand, ref Translation position) =>
+                    {
+                        position.Value = positionCueBall;
+                    }).WithoutBurst().Run();
+                    break;
+            }
+        }
+
+        private void HideHandHold()
+        {
+            switch (ballInHand)
+            {
+                case BallInHand.none:
+                    break;
+                default:
+                    Entities.ForEach((ref Hand hand, ref Translation position) =>
+                    {
+                        position.Value.x = 1000;
+                    }).WithoutBurst().Run();
+                    break;
+            }
+        }
+
+        private void ShowHandMove()
+        {
+            switch (ballInHand)
+            {
+                case BallInHand.none:
+                    break;
+                default:
+                    Entities.ForEach((ref HandMove hand, ref Translation position) =>
+                    {
+                        position.Value = positionCueBall;
+                        position.Value.y = 5;
+                    }).WithoutBurst().Run();
+                    break;
+            }
+        }
+
+        private void HideHandMove()
+        {
+            switch (ballInHand)
+            {
+                case BallInHand.none:
+                    break;
+                default:
+                    Entities.ForEach((ref HandMove hand, ref Translation position) =>
+                    {
+                        position.Value.x = 1000;
+                    }).WithoutBurst().Run();
+                    break;
+            }
+        }
+
+
 
         private float3 GetPositionCueBall()
         {
             float3 result = float3.zero;
-            bool isCue = true;
+            bool isCueBall = true;
             Entities.ForEach((ref Ball ball, ref Translation position) =>
             {
-                if (isCue)
+                if (isCueBall)
                 {
-                    isCue = false;
+                    isCueBall = false;
                     result = position.Value;
                 }
             }).Run();
             return result;
         }
 
-        private void ShowCue(bool isMyTurn)
+        private void SetPositionCueBall(float3 position)
         {
-            Entities.ForEach((ref Cue cue) =>
+            int i = 0;
+            Entities.ForEach((ref Ball ball, ref Translation currentPosition) =>
             {
-                if (cue.isMine == isMyTurn)
+                if (i++ == 0)
                 {
+                    Physics.Instance.SetPositionCueBall(position);
+                }
+            }).Run();
+        }
+
+        private void ShowCue()
+        {
+            Entities.ForEach((ref Cue cue, ref Translation position, ref Rotation rotation) =>
+            {
+                if (cue.isSlide)
+                {
+                    position.Value.x = -(power / MAX_POWER) * 2f;
+                }
+                else
+                {
+                    position.Value = positionCueBall;
+                    rotation.Value = quaternion.LookRotation(new float3(-direction.z, 0, direction.x), new float3(0, 1, 0));
                 }
             }).WithoutBurst().Run();
         }
 
         private void HideCue()
         {
+            Entities.ForEach((ref Cue cue, ref Translation position) =>
+            {
+                if (!cue.isSlide)
+                {
+                    position.Value.x = 1000;
+                }
+            }).WithoutBurst().Run();
+        }
 
+        private bool HittingCue()
+        {
+            bool isHitting = true;
+            Entities.ForEach((ref Cue cue, ref Translation position) =>
+            {
+                if (cue.isSlide)
+                {
+                    position.Value.x += (power / MAX_POWER) * 0.25f;
+                    if (position.Value.x >= 0)
+                    {
+                        position.Value.x = 0;
+                        isHitting = false;
+                    }
+                }
+            }).WithoutBurst().Run();
+            return isHitting;
         }
 
         private void ShowGuide(float3 force)
         {
             force.y = 0;
-            float3 posCueBall = float3.zero;
             float3 posTargetBall = float3.zero;
             float3 hitPosition = float3.zero;
             bool isHit = false;
 
-            posCueBall = GetPositionCueBall();
-
+            float nearestDistance = float.MaxValue;
+            float currentDistance;
+            bool isCurrentHit;
+            float3 currentHitPosition;
+            float3 positionCheck;
             int i = 0;
+            int serialHitBall = -1;
             Entities.ForEach((ref Ball ball, ref Translation position) =>
             {
-                if (i == 1)
+                if (i != 0)
                 {
-                    posTargetBall = position.Value;
-                    GetHitPositionBallToBall(posCueBall, posTargetBall, force, out isHit, out hitPosition);
+                    if (StaticFuntion.IsCollisionBall(positionCueBall, position.Value, 0.0001f))
+                    {
+                        positionCheck = StaticFuntion.GetResizeVector2(positionCueBall - position.Value, StaticFuntion.diameterBall + 0.0001f) + position.Value;
+                    }
+                    else
+                    {
+                        positionCheck = positionCueBall;
+                    }
+                    StaticFuntion.GetHitPositionBallToBall(positionCheck, position.Value, force, out isCurrentHit, out currentHitPosition);
+                    if (isCurrentHit)
+                    {
+                        isHit = true;
+                        currentDistance = StaticFuntion.GetPowSizeVector2(currentHitPosition - positionCheck);
+                        if (position.Value.y > -0.32f && nearestDistance > currentDistance)
+                        {
+                            nearestDistance = currentDistance;
+                            hitPosition = currentHitPosition;
+                            posTargetBall = position.Value;
+                            serialHitBall = i;
+                        }
+                    }
                 }
                 i++;
             }).WithoutBurst().Run();
+            float3 start = positionCueBall;
+            float3 end = positionCueBall + StaticFuntion.GetResizeVector2(force, 100f);
+            start.y = end.y = 20;
+            Physics.Instance.GetRaycastHitPositionBallToBoardLine(positionCueBall, force, out bool isHaveHit, out float3 positionHit);
             if (isHit)
             {
+                if (isHaveHit)
+                {
+                    currentDistance = StaticFuntion.GetPowSizeVector2(positionHit - positionCueBall);
+                    if (nearestDistance > currentDistance)
+                    {
+                        nearestDistance = currentDistance;
+                        hitPosition = positionHit;
+                        isHit = false;
+                    }
+                }
+            }
+            else
+            {
+                if (isHaveHit)
+                {
+                    hitPosition = positionHit;
+                }
+                else
+                {
+                    hitPosition = positionCueBall;
+                }
+            }
+            if (isHit)
+            {
+                float3 velocityRootOut = float3.zero;
+                float3 velocityTargetOut = float3.zero;
+                currentHitPosition = float3.zero;
+                i = 0;
+                Entities.ForEach((ref Ball ball, ref Translation position) =>
+                {
+                    if (i++ == serialHitBall)
+                    {
+                        StaticFuntion.VelocityAfterCollisionBall(positionCueBall, position.Value, force, float3.zero, out isCurrentHit, out currentHitPosition, ref velocityRootOut, ref velocityTargetOut);
+                    }
+                }).WithoutBurst().Run();
                 Entities.ForEach((ref Guide guide, ref Translation position, ref Rotation rotation, ref NonUniformScale scale) =>
                 {
                     switch (guide.id)
@@ -92,14 +833,14 @@ namespace Billiards
                             position.Value = hitPosition;
                             break;
                         case Guide.ID.LineCueIncidence:
-                            DrawLine(ref position, ref rotation, ref scale, posCueBall, hitPosition);
+                            DrawLine(ref position, ref rotation, ref scale, positionCueBall, hitPosition);
                             break;
                         case Guide.ID.LineCueReflection:
+                            float3 cueReflectPosition = hitPosition + velocityRootOut * (1f / StaticFuntion.GetSizeVector(force));
+                            DrawLine(ref position, ref rotation, ref scale, hitPosition, cueReflectPosition);
                             break;
                         case Guide.ID.LineBeHit:
-                            float3 reflectForce = posTargetBall - hitPosition;
-                            float3 reflectPosition = posTargetBall + reflectForce * 10;
-
+                            float3 reflectPosition = posTargetBall + velocityTargetOut * (1f / StaticFuntion.GetSizeVector(force));
                             DrawLine(ref position, ref rotation, ref scale, posTargetBall, reflectPosition);
                             break;
                     }
@@ -108,82 +849,69 @@ namespace Billiards
             }
             else
             {
-                Entities.ForEach((ref Guide guide, ref Translation position) =>
+                if (isHaveHit)
                 {
-                    position.Value = new float3(1000, position.Value.y, 1000);
-                }).WithoutBurst().Run();
+                    Entities.ForEach((ref Guide guide, ref Translation position, ref Rotation rotation, ref NonUniformScale scale) =>
+                    {
+                        switch (guide.id)
+                        {
+                            case Guide.ID.hitPoint:
+                                position.Value = hitPosition;
+                                break;
+                            case Guide.ID.LineCueIncidence:
+                                DrawLine(ref position, ref rotation, ref scale, positionCueBall, hitPosition);
+                                break;
+                            case Guide.ID.LineCueReflection:
+                                position.Value = new float3(1000, position.Value.y, 1000);
+                                break;
+                            case Guide.ID.LineBeHit:
+                                position.Value = new float3(1000, position.Value.y, 1000);
+                                break;
+                        }
+                        position.Value.y = 1;
+                    }).WithoutBurst().Run();
+                }
+                else
+                {
+                    Entities.ForEach((ref Guide guide, ref Translation position, ref Rotation rotation, ref NonUniformScale scale) =>
+                    {
+                        position.Value = new float3(1000, position.Value.y, 1000);
+                    }).WithoutBurst().Run();
+                }
             }
         }
 
         private void HideGuide()
         {
+            Entities.ForEach((ref Guide guide, ref Translation position) =>
+            {
+                position.Value = new float3(1000, position.Value.y, 1000);
+            }).WithoutBurst().Run();
+        }
 
+        public float3 GetPositionClosestTargetBall()
+        {
+            float3 positionClosest = new float3(1000, 0, 1000);
+            int i = 0;
+            Entities.ForEach((ref Ball ball, ref Translation position) =>
+            {
+                if (i++ != 0 && position.Value.y > -1f)
+                {
+                    if (StaticFuntion.GetPowSizeVector2(positionClosest - positionCueBall) > StaticFuntion.GetPowSizeVector2(position.Value - positionCueBall))
+                    {
+                        positionClosest = position.Value;
+                    }
+                }
+            }).WithoutBurst().Run();
+            return positionClosest;
         }
 
         private void DrawLine(ref Translation position, ref Rotation rotation, ref NonUniformScale scale, float3 pos1, float3 pos2)
         {
             position.Value = pos1 + (pos2 - pos1) / 2;
-            scale.Value.x = (float)Math.Sqrt(Math.Pow(pos2.x - pos1.x, 2) + Math.Pow(pos2.z - pos1.z, 2)) / 10f;
+            scale.Value.x = math.sqrt(math.pow(pos2.x - pos1.x, 2) + math.pow(pos2.z - pos1.z, 2)) / 10f;
             float3 force = pos2 - pos1;
             rotation.Value = quaternion.LookRotation(new float3(-force.z, 0, force.x), new float3(0, 1, 0));
-        }
-
-        private void QuadraticEquation2(float a, float b, float c, out float x1, out float x2)
-        {
-            float del = b * b - 4 * a * c;
-            if (del >= 0)
-            {
-                del = (float)Math.Sqrt(del);
-                x1 = (-b + del) / (2 * a);
-                x2 = (-b - del) / (2 * a);
-            }
-            else
-            {
-                x1 = x2 = float.NaN;
-            }
-
-        }
-
-        private void GetHitPositionBallToBall(float3 posStart, float3 posTarget, float3 force, out bool isHit, out float3 result)
-        {
-            float a = force.z;
-            float b = -force.x;
-            float c = -a * posStart.x - b * posStart.z;
-            float i1 = posTarget.x;
-            float i2 = posTarget.z;
-            float p1 = a / b;
-            float p2 = c / b;
-            float A = 1 + p1 * p1;
-            float B = 2 * (a * c / (b * b) - i1 + i2 * a / b);
-            float C = p2 * p2 + 2 * i2 * c / b + i1 * i1 + i2 * i2 - Physics.powDiameterBall;
-            float x1, x2;
-            QuadraticEquation2(A, B, C, out x1, out x2);
-            isHit = false;
-            if (float.IsNaN(x1))
-            {
-                result = float3.zero;
-            }
-            else
-            {
-                if (math.abs(x1 - posStart.x) > math.abs(x2 - posStart.x))
-                {
-                    x1 = x2;
-                }
-                float y = (-a * x1 - c) / b;
-                result = new float3(x1, 0, y);
-                float3 nextPos = posStart + force;
-                if (posStart.x > result.x && posStart.x > nextPos.x || posStart.x < result.x && posStart.x < nextPos.x)
-                {
-                    if (posStart.z > result.z && posStart.z > nextPos.z || posStart.z < result.z && posStart.z < nextPos.z)
-                    {
-                        isHit = true;
-                    }
-                }
-                if (!isHit)
-                {
-                    result = float3.zero;
-                }
-            }
         }
     }
 }
