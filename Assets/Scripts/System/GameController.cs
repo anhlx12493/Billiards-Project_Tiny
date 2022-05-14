@@ -687,14 +687,7 @@ namespace Billiards
 
         private void SetPositionCueBall(float3 position)
         {
-            int i = 0;
-            Entities.ForEach((ref Ball ball, ref Translation currentPosition) =>
-            {
-                if (i++ == 0)
-                {
-                    Physics.Instance.SetPositionCueBall(position);
-                }
-            }).Run();
+            Physics.Instance.SetPositionCueBall(position);
         }
 
         private void ShowCue()

@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using System.Collections.Generic;
+using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Physics.Extensions;
@@ -39,13 +40,17 @@ namespace Billiards
 
         private bool[] isApplyFriction;
         private bool[] isInPocket;
+        private bool[] isInTrack;
 
         private Pocket[] inPocket;
 
         private float3[] BoardLine;
         private float3[] BoardLineNormalInside;
+        private float3[] TrackLine;
 
         private Random random;
+
+        private List<int> serialBallInTrack = new List<int>();
 
         protected override void OnStartRunning()
         {
@@ -60,6 +65,7 @@ namespace Billiards
                 InitBalls();
                 UpdateCurrentPositionBall();
                 InitBoardLine();
+                InitTrackLine();
                 return;
             }
             MoveAllBall();
@@ -73,6 +79,7 @@ namespace Billiards
             {
                 count++;
             }).WithoutBurst().Run();
+            Debug.Log(count);
             BoardLine = new float3[count];
             BoardLineNormalInside = new float3[count];
             count = 0;
@@ -145,6 +152,21 @@ namespace Billiards
             BoardLine[count] = GetIntersectionPosition(a1, b1, c1, a2, b2, c2, out isHaveResult);
         }
 
+        private void InitTrackLine()
+        {
+            int count = 0;
+            Entities.ForEach((ref TrackPointLine point) =>
+            {
+                count++;
+            }).WithoutBurst().Run();
+            TrackLine = new float3[count];
+            count = 0;
+            Entities.ForEach((ref TrackPointLine point, ref Translation position) =>
+            {
+                TrackLine[count++] = position.Value;
+            }).WithoutBurst().Run();
+        }
+
         private void InitBalls()
         {
             int count = 0;
@@ -158,6 +180,7 @@ namespace Billiards
             currentRotationBall = new float3[count];
             currentMoveAtCollisionBall = new float3[count];
             isInPocket = new bool[count];
+            isInTrack = new bool[count];
             isApplyFriction = new bool[count];
             inPocket = new Pocket[count];
             currentExcludeLine = new int[count];
@@ -270,6 +293,7 @@ namespace Billiards
             int i = 0;
             Entities.ForEach((ref Ball ball) =>
             {
+                ball.addForce.y = 0;
                 currentVelocityBall[i++] += ball.addForce;
                 ball.addForce = float3.zero;
             }).WithoutBurst().Run();
@@ -284,7 +308,7 @@ namespace Billiards
                 for (i = 0; i < currentPositionBall.Length; i++)
                 {
                     UpdateRandomSerial(3);
-                    if (IsBallMoving(i))
+                    if (!isInTrack[i] && IsBallMoving(i))
                     {
                         if (!CheckCollision(i))
                         {
@@ -298,18 +322,25 @@ namespace Billiards
             IsAnyBallMoving = false;
             for (i = 0; i < currentPositionBall.Length; i++)
             {
-                if (IsBallMoving(i))
+                if (!isInTrack[i])
                 {
-                    if (!CheckCollision(i))
+                    if (IsBallMoving(i))
                     {
-                        ApplyFrictionVelocityBall(i);
-                        currentPositionBall[i] += currentVelocityBall[i];
-                        currentExcludeLine[i] = -1;
+                        if (!CheckCollision(i))
+                        {
+                            ApplyFrictionVelocityBall(i);
+                            currentPositionBall[i] += currentVelocityBall[i];
+                            currentExcludeLine[i] = -1;
+                        }
+                        if (!isInPocket[i])
+                        {
+                            IsAnyBallMoving = true;
+                        }
                     }
-                    if (!isInPocket[i])
-                    {
-                        IsAnyBallMoving = true;
-                    }
+                }
+                else
+                {
+
                 }
             }
             i = 0;
@@ -372,7 +403,7 @@ namespace Billiards
             {
                 float powPower = StaticFuntion.GetSizeVector(currentVelocityBall[serial]);
                 float friction;
-                if (powPower < 0.0001f)
+                if (powPower < 0.00001f)
                 {
                     currentVelocityBall[serial].x = 0;
                     currentVelocityBall[serial].z = 0;
@@ -380,8 +411,8 @@ namespace Billiards
                 else
                 {
                     //friction = math.clamp(1f - 0.00001f / powPower, 0f, 1f) * 0.995f;
-                    friction = 0.99f;
-                    //StaticFuntion.ResizeVector2(ref currentVelocityBall[serial], math.clamp(powPower - 0.0001f, 0, powPower));
+                    friction = 0.994f;
+                    currentVelocityBall[serial] -= StaticFuntion.GetResizeVector2(currentVelocityBall[serial], 0.00001f);
                     currentVelocityBall[serial].x *= friction;
                     currentVelocityBall[serial].z *= friction;
                 }
@@ -415,18 +446,22 @@ namespace Billiards
             }).WithoutBurst().Run();
             for (i = 0; i < currentPositionBall.Length; i++)
             {
-                if (isInPocket[i])
+                if (!isInTrack[i])
                 {
-                    if (timesFallInPocket[i]++ > 400)
+                    if (isInPocket[i])
                     {
-                        currentVelocityBall[i] = float3.zero;
+                        if (timesFallInPocket[i]++ > 400)
+                        {
+                            isInTrack[i] = true;
+                            
+                        }
+                        else
+                        if (timesFallInPocket[i] > 70)
+                        {
+                            currentVelocityBall[i] += StaticFuntion.GetResizeVector2(inPocket[i].directionGoInsideBoard, 0.00003f);
+                        }
+                        currentPositionBall[i].y = -5f;
                     }
-                    else
-                    if (timesFallInPocket[i] > 70)
-                    {
-                        currentVelocityBall[i] += StaticFuntion.GetResizeVector2(inPocket[i].directionGoInsideBoard, 0.00003f);
-                    }
-                    currentPositionBall[i].y = -5f;
                 }
             }
         }
@@ -469,6 +504,8 @@ namespace Billiards
                             if (isHitBall)
                             {
                                 isHit = true;
+                                CheckCollisionBallvsBoardLine(serial);
+                                CheckCollisionBallvsBoardLine(i);
                                 currentMoveAtCollisionBall[serial] = 0;
                                 currentMoveAtCollisionBall[ramdomSerial[i]] = currentVelocityBall[ramdomSerial[i]];
                                 currentPositionBall[serial] = positionHit;
@@ -482,7 +519,7 @@ namespace Billiards
                     }
                 }
             }
-            if (CheckCollisionBallvsBoardLine(serial))
+            if (!isHit && CheckCollisionBallvsBoardLine(serial))
                 isHit = true;
             if (isHit)
                 isApplyFriction[serial] = false;
