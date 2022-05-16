@@ -387,6 +387,38 @@ namespace Billiards
             }).WithoutBurst().Run();
         }
 
+        public bool IsAnyBallRollingInTrack()
+        {
+            int countFreezeBall = 0;
+            foreach (bool isInPocket in isInPocket)
+            {
+                if (isInPocket)
+                {
+                    countFreezeBall++;
+                }
+            }
+            foreach (bool isFreeze in isFreezeInTrack)
+            {
+                if (isFreeze)
+                {
+                    countFreezeBall--;
+                }
+            }
+            if (countFreezeBall > 0)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool IsBallInPocket(int serial)
+        {
+            return isInPocket[serial];
+        }
+
         public void SetPositionCueBall(float3 moveTo)
         {
             bool isCueBall = true;
@@ -517,6 +549,18 @@ namespace Billiards
                 }
                 lastSerial = i;
             }
+        }
+
+        public void GetBallOutOfTrack(int serial)
+        {
+            for (int i = 0; i < isFreezeInTrack.Length; i++)
+            {
+                isFreezeInTrack[i] = false;
+            }
+            listSerialBallInTrack.Remove(serial);
+            isInTrack[serial] = false;
+            isInPocket[serial] = false;
+            timesFallInPocket[serial] = 0;
         }
 
         private bool IsCollisionAnyBallsInTRack(int serial)

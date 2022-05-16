@@ -81,17 +81,17 @@ namespace Billiards
 
         private void HandleRule()
         {
-            //if (positionCueBall.y < -5f)
-            //{
-            //    isCueBallInPocket = true;
-            //    if (!isAnyBallMoving && !BallController.Instance.isBallStillRollingOnPack)
-            //    {
-            //        isCueBallInPocket = false;
-            //        ballInHand = BallInHand.Free;
-            //        SetCueBall(new float3(0, 3, 0), float3.zero, float3.zero);
-            //        BallController.Instance.GetBallOutOfTrack(0);
-            //    }
-            //}
+            if (Physics.Instance.IsBallInPocket(0))
+            {
+                isCueBallInPocket = true;
+                if (!isAnyBallMoving && !Physics.Instance.IsAnyBallRollingInTrack())
+                {
+                    isCueBallInPocket = false;
+                    ballInHand = BallInHand.Free;
+                    SetPositionCueBall(float3.zero);
+                    Physics.Instance.GetBallOutOfTrack(0);
+                }
+            }
             if (isUpdateTarget)
             {
                 isUpdateTarget = false;
