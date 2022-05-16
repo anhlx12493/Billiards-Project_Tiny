@@ -27,11 +27,13 @@ namespace Billiards
         private float3[] currentVelocityBall;
         private float3[] currentMoveAtCollisionBall;
         private float3[] currentRotationBall;
+        private float3[] currentPositionStartOfPathTrackBall;
 
 
         private int[] currentExcludeLine;
         private int[] ramdomSerial;
         private int[] timesFallInPocket;
+        private int[] currentPathOfTrackBall;
 
         private int[] softIdByPositionXBallAtSerial;
         private int[] softIdByPositionXBallAtElement;
@@ -41,6 +43,7 @@ namespace Billiards
         private bool[] isApplyFriction;
         private bool[] isInPocket;
         private bool[] isInTrack;
+        private bool[] isFreezeInTrack;
 
         private Pocket[] inPocket;
 
@@ -50,7 +53,7 @@ namespace Billiards
 
         private Random random;
 
-        private List<int> serialBallInTrack = new List<int>();
+        private List<int> listSerialBallInTrack = new List<int>();
 
         protected override void OnStartRunning()
         {
@@ -179,12 +182,15 @@ namespace Billiards
             currentVelocityBall = new float3[count];
             currentRotationBall = new float3[count];
             currentMoveAtCollisionBall = new float3[count];
+            currentPositionStartOfPathTrackBall = new float3[count];
             isInPocket = new bool[count];
             isInTrack = new bool[count];
             isApplyFriction = new bool[count];
+            isFreezeInTrack = new bool[count];
             inPocket = new Pocket[count];
             currentExcludeLine = new int[count];
             ramdomSerial = new int[count];
+            currentPathOfTrackBall = new int[count];
             timesFallInPocket = new int[count];
             for (int i = 0; i < count; i++)
             {
@@ -304,9 +310,9 @@ namespace Billiards
             }
             for (int loop = 0; loop < 5; loop++)
             {
-                HandlePocket();
                 for (i = 0; i < currentPositionBall.Length; i++)
                 {
+                    HandlePocket(i);
                     UpdateRandomSerial(3);
                     if (!isInTrack[i] && IsBallMoving(i))
                     {
@@ -317,11 +323,12 @@ namespace Billiards
                         }
                     }
                 }
+                HandleTrack();
             }
-            HandlePocket();
             IsAnyBallMoving = false;
             for (i = 0; i < currentPositionBall.Length; i++)
             {
+                HandlePocket(i);
                 if (!isInTrack[i])
                 {
                     if (IsBallMoving(i))
@@ -338,17 +345,14 @@ namespace Billiards
                         }
                     }
                 }
-                else
-                {
-
-                }
             }
+            HandleTrack();
             i = 0;
             Entities.ForEach((ref Ball ball , ref Translation posistion, ref Rotation rot, ref PhysicsVelocity physicsVelocity, ref PhysicsMass physicsMass) =>
             {
                 if (currentRotationBall[i].x < currentVelocityBall[i].z)
                 {
-                    currentRotationBall[i].x += 0.001f;
+                    currentRotationBall[i].x += 0.01f;
                     if (currentRotationBall[i].x > currentVelocityBall[i].z)
                     {
                         currentRotationBall[i].x = currentVelocityBall[i].z;
@@ -364,7 +368,7 @@ namespace Billiards
                 }
                 if (currentRotationBall[i].z < -currentVelocityBall[i].x)
                 {
-                    currentRotationBall[i].z += 0.001f;
+                    currentRotationBall[i].z += 0.01f;
                     if (currentRotationBall[i].z > -currentVelocityBall[i].x)
                     {
                         currentRotationBall[i].z = -currentVelocityBall[i].x;
@@ -410,7 +414,6 @@ namespace Billiards
                 }
                 else
                 {
-                    //friction = math.clamp(1f - 0.00001f / powPower, 0f, 1f) * 0.995f;
                     friction = 0.994f;
                     currentVelocityBall[serial] -= StaticFuntion.GetResizeVector2(currentVelocityBall[serial], 0.00001f);
                     currentVelocityBall[serial].x *= friction;
@@ -419,51 +422,113 @@ namespace Billiards
             }
         }
 
-        private void HandlePocket()
+        private void HandlePocket(int serial)
         {
-            int i;
-            float radiusPocket;
-            Entities.ForEach((ref Pocket pocket, ref Translation posistion, ref NonUniformScale scale) =>
+            if (!isInTrack[serial])
             {
-                radiusPocket = scale.Value.x * 0.5f;
-                for (i = 0; i < currentPositionBall.Length; i++)
+                if (isInPocket[serial])
                 {
-                    if (!isInPocket[i])
+                    if (timesFallInPocket[serial]++ > 400)
                     {
-                        if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < (radiusPocket - radiusBall) * (radiusPocket - radiusBall))
+                        currentVelocityBall[serial] = float3.zero;
+                        currentPositionBall[serial].x = TrackLine[0].x - 0.32f;
+                        currentPositionBall[serial].z = TrackLine[0].z;
+                        if (!IsCollisionAnyBallsInTRack(serial))
                         {
-                            isInPocket[i] = true;
-                            currentPositionBall[i].y = -5f;
-                            inPocket[i] = pocket;
-                        }
-                        else
-                        if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < radiusPocket * radiusPocket)
-                        {
-                            currentVelocityBall[i] += StaticFuntion.GetResizeVector2(posistion.Value - currentPositionBall[i], 0.00001f);
+                            isInTrack[serial] = true;
+                            currentPositionStartOfPathTrackBall[serial] = currentPositionBall[serial];
+                            currentPathOfTrackBall[serial] = 0;
+                            currentVelocityBall[serial] = StaticFuntion.GetResizeVector2(TrackLine[0] - currentPositionBall[serial], 0.01f);
+                            currentVelocityBall[serial].y = 0;
+                            listSerialBallInTrack.Add(serial);
+                            currentRotationBall[serial] = float3.zero;
                         }
                     }
+                    else
+                    if (timesFallInPocket[serial] > 70)
+                    {
+                        currentVelocityBall[serial] += StaticFuntion.GetResizeVector2(inPocket[serial].directionGoInsideBoard, 0.00003f);
+                    }
+                    currentPositionBall[serial].y = -5f;
                 }
-            }).WithoutBurst().Run();
-            for (i = 0; i < currentPositionBall.Length; i++)
-            {
-                if (!isInTrack[i])
+                else
                 {
-                    if (isInPocket[i])
+                    int i;
+                    float radiusPocket;
+                    Entities.ForEach((ref Pocket pocket, ref Translation posistion, ref NonUniformScale scale) =>
                     {
-                        if (timesFallInPocket[i]++ > 400)
+                        radiusPocket = scale.Value.x * 0.5f;
+                        for (i = 0; i < currentPositionBall.Length; i++)
                         {
-                            isInTrack[i] = true;
-                            
+                            if (!isInPocket[i])
+                            {
+                                if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < (radiusPocket - radiusBall) * (radiusPocket - radiusBall))
+                                {
+                                    isInPocket[i] = true;
+                                    currentPositionBall[i].y = -5f;
+                                    inPocket[i] = pocket;
+                                }
+                                else
+                                if (StaticFuntion.GetPowSizeVector2(posistion.Value - currentPositionBall[i]) < radiusPocket * radiusPocket)
+                                {
+                                    currentVelocityBall[i] += StaticFuntion.GetResizeVector2(posistion.Value - currentPositionBall[i], 0.00001f);
+                                }
+                            }
                         }
-                        else
-                        if (timesFallInPocket[i] > 70)
-                        {
-                            currentVelocityBall[i] += StaticFuntion.GetResizeVector2(inPocket[i].directionGoInsideBoard, 0.00003f);
-                        }
-                        currentPositionBall[i].y = -5f;
-                    }
+                    }).WithoutBurst().Run();
                 }
             }
+        }
+
+        private void HandleTrack()
+        {
+            if (listSerialBallInTrack.Count == 0)
+                return;
+            bool isFreeze = true;
+            int lastSerial = listSerialBallInTrack[0];
+            foreach (int i in listSerialBallInTrack)
+            {
+                if (!isFreezeInTrack[i])
+                {
+                    if (isFreeze && (i != lastSerial && StaticFuntion.IsCollisionBall(currentPositionBall[lastSerial], currentPositionBall[i]) || currentPathOfTrackBall[i] >= TrackLine.Length))
+                    {
+                        currentVelocityBall[i] = float3.zero;
+                        isFreezeInTrack[i] = true;
+                        if (i != lastSerial)
+                        {
+                            currentPositionBall[i] = currentPositionBall[lastSerial] + StaticFuntion.GetResizeVector2(currentPositionBall[i] - currentPositionBall[lastSerial], radiusBall * 2f);
+                        }
+                    }
+                    else
+                    {
+                        isFreeze = false;
+                        currentPositionBall[i] += currentVelocityBall[i];
+                        if (StaticFuntion.GetPowSizeVector2(currentPositionBall[i] - currentPositionStartOfPathTrackBall[i]) >= StaticFuntion.GetPowSizeVector2(TrackLine[currentPathOfTrackBall[i]] - currentPositionStartOfPathTrackBall[i]))
+                        {
+                            currentPathOfTrackBall[i]++;
+                        }
+                        if (currentPathOfTrackBall[i] < TrackLine.Length)
+                        {
+                            currentVelocityBall[i] = StaticFuntion.GetResizeVector2(TrackLine[currentPathOfTrackBall[i]] - currentPositionBall[i], 0.01f);
+                            currentVelocityBall[i].y = 0;
+                            currentPositionStartOfPathTrackBall[i] = currentPositionBall[i];
+                        }
+                    }
+                }
+                lastSerial = i;
+            }
+        }
+
+        private bool IsCollisionAnyBallsInTRack(int serial)
+        {
+            for (int i = 0; i < currentPositionBall.Length; i++)
+            {
+                if (i != serial && isInTrack[i] && StaticFuntion.IsCollisionBall(currentPositionBall[serial],currentPositionBall[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void UpdateRandomSerial(int rollTimes)
