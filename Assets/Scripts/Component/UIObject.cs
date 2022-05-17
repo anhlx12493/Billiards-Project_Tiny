@@ -4,8 +4,8 @@ using Unity.Mathematics;
 [GenerateAuthoringComponent]
 public struct UIObject : IComponentData
 {
-    public enum Alignment { middle, top, left, right, bottom }
+    public enum Alignment { none ,middle, top, left, right}
     public float3 size;
-    public Alignment alignment;
-    public float alignValue;
+    public Alignment alignment, alignmentExtra;
+    public float alignValue, alignValueExtra;
 }

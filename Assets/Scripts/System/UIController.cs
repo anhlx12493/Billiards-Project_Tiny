@@ -55,6 +55,21 @@ namespace Billiards
                     case UIObject.Alignment.right:
                         position.Value.x = (float)(screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValue);
                         break;
+                    case UIObject.Alignment.top:
+                        position.Value.z = (float)(HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValue);
+                        break;
+                }
+                switch (uIObject.alignmentExtra)
+                {
+                    case UIObject.Alignment.left:
+                        position.Value.x = (float)(-screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA + uIObject.alignValueExtra);
+                        break;
+                    case UIObject.Alignment.right:
+                        position.Value.x = (float)(screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValueExtra);
+                        break;
+                    case UIObject.Alignment.top:
+                        position.Value.z = (float)(HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValueExtra);
+                        break;
                 }
             }).WithoutBurst().Run();
         }
