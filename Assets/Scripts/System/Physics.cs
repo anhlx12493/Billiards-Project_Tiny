@@ -553,9 +553,15 @@ namespace Billiards
 
         public void GetBallOutOfTrack(int serial)
         {
-            for (int i = 0; i < isFreezeInTrack.Length; i++)
+            bool isFound = false;
+            for (int i = 0; i < listSerialBallInTrack.Count; i++)
             {
-                isFreezeInTrack[i] = false;
+                if (listSerialBallInTrack[i] == serial)
+                {
+                    isFound = true;
+                }
+                if(isFound)
+                    isFreezeInTrack[listSerialBallInTrack[i]] = false;
             }
             listSerialBallInTrack.Remove(serial);
             isInTrack[serial] = false;
