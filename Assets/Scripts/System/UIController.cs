@@ -4,6 +4,7 @@ using Unity.Tiny;
 using Unity.Tiny.Input;
 using Unity.Tiny.UI;
 using Unity.Transforms;
+using Unity.Tiny.Rendering;
 
 namespace Billiards
 {
@@ -16,13 +17,18 @@ namespace Billiards
         public static float3 WorldMousePosition { get; private set; }
 
         private InputSystem Input;
-        private double screenWidth, screenHeight;
+        private double screenWidth, screenHeight, lastScreenWidth, lastScreenHeight;
 
         private int isStartRunning = 3;
+
+        private float currentHaftHeightSizeCamera = (float)HAFT_HEIGHT_SIZE_CAMERA;
+        private float currentHeightSizeCamera = (float)HEIGHT_SIZE_CAMERA;
+
 
         protected override void OnStartRunning()
         {
         }
+
         protected override void OnUpdate()
         {
             Input = World.GetExistingSystem<InputSystem>();
@@ -31,15 +37,43 @@ namespace Billiards
             screenHeight = canvas.SizeDelta.y;
             UpdateWorldMousePosition();
             Alignmemt();
+            UpdateCamera();
+            lastScreenWidth = screenWidth;
+            lastScreenHeight = screenHeight;
+        }
+
+        private void UpdateCamera()
+        {
+            if (lastScreenWidth != screenWidth || lastScreenHeight != screenHeight)
+            {
+                if (screenHeight / screenWidth > 0.5625f)
+                {
+                    Entities.ForEach((ref Camera camera) =>
+                    {
+                        currentHaftHeightSizeCamera = (float)(HAFT_HEIGHT_SIZE_CAMERA * (screenHeight / screenWidth / 0.5625f));
+                        camera.fov = currentHaftHeightSizeCamera;
+                        currentHeightSizeCamera = currentHaftHeightSizeCamera * 2;
+                    }).WithoutBurst().Run();
+                }
+                else
+                {
+                    Entities.ForEach((ref Camera camera) =>
+                    {
+                        currentHaftHeightSizeCamera = (float)(HAFT_HEIGHT_SIZE_CAMERA);
+                        camera.fov = currentHaftHeightSizeCamera;
+                        currentHeightSizeCamera = currentHaftHeightSizeCamera * 2;
+                    }).WithoutBurst().Run();
+                }
+            }
         }
 
         private void UpdateWorldMousePosition()
         {
             var posClick = Input.GetInputPosition();
-            double x = HEIGHT_SIZE_CAMERA * (screenWidth / screenHeight);
+            double x = currentHeightSizeCamera * (screenWidth / screenHeight);
             float3 worldClick = float3.zero;
             worldClick.x = (float)(posClick.x / screenWidth * x - x / 2d);
-            worldClick.z = (float)(posClick.y / screenHeight * HEIGHT_SIZE_CAMERA - HAFT_HEIGHT_SIZE_CAMERA + POSITION_Y_CAMERA);
+            worldClick.z = (float)(posClick.y / screenHeight * currentHeightSizeCamera - currentHaftHeightSizeCamera + POSITION_Y_CAMERA);
             WorldMousePosition = worldClick;
         }
 
@@ -47,28 +81,22 @@ namespace Billiards
         {
             Entities.ForEach((ref UIObject uIObject, ref Translation position) =>
             {
-                switch (uIObject.alignment)
+                switch (uIObject.alignmentHorizontal)
                 {
-                    case UIObject.Alignment.left:
-                        position.Value.x = (float)(-screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA + uIObject.alignValue);
+                    case UIObject.AlignmentHorizontal.left:
+                        position.Value.x = (float)(-screenWidth / screenHeight * currentHaftHeightSizeCamera + uIObject.alignHorizontalValue);
                         break;
-                    case UIObject.Alignment.right:
-                        position.Value.x = (float)(screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValue);
-                        break;
-                    case UIObject.Alignment.top:
-                        position.Value.z = (float)(HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValue);
+                    case UIObject.AlignmentHorizontal.right:
+                        position.Value.x = (float)(screenWidth / screenHeight * currentHaftHeightSizeCamera - uIObject.alignHorizontalValue);
                         break;
                 }
-                switch (uIObject.alignmentExtra)
+                switch (uIObject.alignmentVertical)
                 {
-                    case UIObject.Alignment.left:
-                        position.Value.x = (float)(-screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA + uIObject.alignValueExtra);
+                    case UIObject.AlignmentVertical.top:
+                        position.Value.z = (float)(currentHaftHeightSizeCamera + POSITION_Y_CAMERA - uIObject.alignVerticalValue);
                         break;
-                    case UIObject.Alignment.right:
-                        position.Value.x = (float)(screenWidth / screenHeight * HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValueExtra);
-                        break;
-                    case UIObject.Alignment.top:
-                        position.Value.z = (float)(HAFT_HEIGHT_SIZE_CAMERA - uIObject.alignValueExtra);
+                    case UIObject.AlignmentVertical.bottom:
+                        position.Value.z = (float)(-currentHaftHeightSizeCamera + POSITION_Y_CAMERA + uIObject.alignVerticalValue);
                         break;
                 }
             }).WithoutBurst().Run();

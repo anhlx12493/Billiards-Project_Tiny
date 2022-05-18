@@ -6,6 +6,7 @@ using Unity.Tiny.UI;
 using Unity.Tiny;
 using Unity.Physics;
 using Unity.Tiny.Rendering;
+using Unity.Tiny.Text;
 
 namespace Billiards
 {
@@ -27,6 +28,11 @@ namespace Billiards
 
         public enum BallInHand { none, BreakShot, Free };
 
+        public static GameController Instance;
+
+
+        public bool isPlayer;
+
         private InputSystem Input;
         private bool isPowerUp;
         private bool isAdjustBar;
@@ -42,6 +48,8 @@ namespace Billiards
         private bool isGlowOpacityUp;
         private bool isUpdateTarget = true;
         private bool isAbleShowGlow = true;
+        private bool isShowingMessage;
+        private bool isMessageUp = true;
         private bool[] isTargetBalls = new bool[16];
         private float3 firstWorldPositionPower;
         private float3 lastWorldPositionAdjust;
@@ -54,10 +62,13 @@ namespace Billiards
         private float timeMouseUpCheckDrag;
         private float speedSmoothRotate;
         private float numberShowGlow = 19;
+        private float timeHangOnMessage;
         private BallInHand ballInHand = BallInHand.BreakShot;
+        public BotInput botInput;
 
         protected override void OnStartRunning()
         {
+            Instance = this;
             Input = World.GetExistingSystem<InputSystem>();
         }
 
@@ -77,6 +88,9 @@ namespace Billiards
                     HandleShowGlow();
                 }
             }
+            HandleMessage();
+
+            HandleEndUpdate();
         }
 
         private void HandleRule()
@@ -120,7 +134,6 @@ namespace Billiards
         private void HandleInput()
         {
             mousePosition = UIController.WorldMousePosition;
-            positionCueBall = GetPositionCueBall();
             if (Input.GetMouseButtonDown(0))
             {
                 isDrag = false;
@@ -134,6 +147,7 @@ namespace Billiards
                 }
                 timeMouseUpCheckDrag += Time.DeltaTime;
             }
+            positionCueBall = GetPositionCueBall();
             isAnyBallMoving = Physics.Instance.IsAnyBallMoving;
             lastMousePosition = mousePosition;
         }
@@ -143,40 +157,49 @@ namespace Billiards
             int i;
             if (isShowGuide && !isBallInHandMoving && !isCueBallInPocket)
             {
-                if (Input.GetMouseButtonUp(0) && !isDrag && !isPowerUp && !isAdjustBar && !isPowerUp)
+                if (isPlayer)
                 {
-                    float3 closestPostion = new float3(1000, 0, 1000);
-                    bool isHaveBall = false;
-                    i = 0;
-                    Entities.ForEach((ref Ball ball, ref Translation position) =>
+                    if (Input.GetMouseButtonUp(0) && !isDrag && !isPowerUp && !isAdjustBar && !isPowerUp)
                     {
-                        if (i++ != 0)
+                        float3 closestPostion = new float3(1000, 0, 1000);
+                        bool isHaveBall = false;
+                        i = 0;
+                        Entities.ForEach((ref Ball ball, ref Translation position) =>
                         {
-                            if (StaticFuntion.IsCollisionBall(position.Value, mousePosition))
+                            if (i++ != 0)
                             {
-                                isHaveBall = true;
-                                if (StaticFuntion.GetPowSizeVector2(closestPostion - mousePosition) > StaticFuntion.GetPowSizeVector2(position.Value - mousePosition))
+                                if (StaticFuntion.IsCollisionBall(position.Value, mousePosition))
                                 {
-                                    closestPostion = position.Value;
+                                    isHaveBall = true;
+                                    if (StaticFuntion.GetPowSizeVector2(closestPostion - mousePosition) > StaticFuntion.GetPowSizeVector2(position.Value - mousePosition))
+                                    {
+                                        closestPostion = position.Value;
+                                    }
                                 }
                             }
+                        }).WithoutBurst().Run();
+                        if (isHaveBall)
+                        {
+                            targetDirection = closestPostion - positionCueBall;
                         }
-                    }).WithoutBurst().Run();
-                    if (isHaveBall)
-                    {
-                        targetDirection = closestPostion - positionCueBall;
+                        else
+                        {
+                            targetDirection = mousePosition - positionCueBall;
+                        }
                         isSmoothRotating = true;
                         speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
                     }
-                    else
+                    ShowGuide(direction);
+                }
+                else
+                {
+                    if (botInput.isClick)
                     {
-                        var posCueBall = positionCueBall;
-                        targetDirection = mousePosition - posCueBall;
+                        targetDirection = botInput.position - positionCueBall;
                         isSmoothRotating = true;
                         speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
                     }
                 }
-                ShowGuide(direction);
                 if (isSmoothRotating)
                 {
                     float currentAngle = StaticFuntion.GetAngle(direction, targetDirection);
@@ -199,69 +222,85 @@ namespace Billiards
 
         private void HandlePower()
         {
-            float top;
-            float left;
-            float right;
-            float bottom;
-            float sizeZ = 4f;
-            top = left = right = bottom = 0;
-            bool isFirst = true;
-            Entities.ForEach((ref UIObject uiObject, ref Translation position) =>
+            if (isPlayer)
             {
-                if (isFirst)
+                float top;
+                float left;
+                float right;
+                float bottom;
+                float sizeZ = 4f;
+                top = left = right = bottom = 0;
+                bool isFirst = true;
+                Entities.ForEach((ref UIObject uiObject, ref Translation position) =>
                 {
-                    isFirst = false;
-                    top = uiObject.size.z / 2f + position.Value.z;
-                    left = -uiObject.size.x / 2f + position.Value.x;
-                    right = uiObject.size.x / 2f + position.Value.x;
-                    bottom = -uiObject.size.z / 2f + position.Value.z;
-                }
-            }).WithoutBurst().Run();
-            if (Input.GetMouseButtonDown(0))
-            {
-                if (mousePosition.x > left && mousePosition.x < right && mousePosition.z > bottom && mousePosition.z < top)
-                {
-                    isPowerUp = true;
-                    firstWorldPositionPower = mousePosition;
-                }
-            }
-            else if (Input.GetMouseButton(0))
-            {
-                if (isPowerUp)
-                {
-                    isFirst = true;
-                    Entities.ForEach((ref Slider slider, ref NonUniformScale scale) =>
+                    if (isFirst)
                     {
-                        if (isFirst)
+                        isFirst = false;
+                        top = uiObject.size.z / 2f + position.Value.z;
+                        left = -uiObject.size.x / 2f + position.Value.x;
+                        right = uiObject.size.x / 2f + position.Value.x;
+                        bottom = -uiObject.size.z / 2f + position.Value.z;
+                    }
+                }).WithoutBurst().Run();
+                if (Input.GetMouseButtonDown(0))
+                {
+                    if (mousePosition.x > left && mousePosition.x < right && mousePosition.z > bottom && mousePosition.z < top)
+                    {
+                        isPowerUp = true;
+                        firstWorldPositionPower = mousePosition;
+                    }
+                }
+                else if (Input.GetMouseButton(0))
+                {
+                    if (isPowerUp)
+                    {
+                        isFirst = true;
+                        Entities.ForEach((ref Slider slider, ref NonUniformScale scale) =>
                         {
-                            isFirst = false;
-                            scale.Value.z = math.clamp((mousePosition.z - firstWorldPositionPower.z) / sizeZ + 1f, 0f, 1f);
-                            power = (1 - scale.Value.z) * MAX_POWER;
+                            if (isFirst)
+                            {
+                                isFirst = false;
+                                scale.Value.z = math.clamp((mousePosition.z - firstWorldPositionPower.z) / sizeZ + 1f, 0f, 1f);
+                                power = (1 - scale.Value.z) * MAX_POWER;
+                            }
+                        }).WithoutBurst().Run();
+                    }
+                }
+                else if (Input.GetMouseButtonUp(0))
+                {
+                    if (isPowerUp)
+                    {
+                        isPowerUp = false;
+                        isShowGuide = false;
+                        if (power > 0)
+                        {
+                            isShoot = true;
+                            isLastShoot = true;
+                            ballInHand = BallInHand.none;
+                            isFirst = true;
+                            Entities.ForEach((ref Slider slider, ref NonUniformScale scale) =>
+                            {
+                                if (isFirst)
+                                {
+                                    isFirst = false;
+                                    scale.Value.z = 0.999f;
+                                }
+                            }).WithoutBurst().Run();
                         }
-                    }).WithoutBurst().Run();
+                    }
                 }
             }
-            else if (Input.GetMouseButtonUp(0))
+            else
             {
-                if (isPowerUp)
+                power = botInput.scalePower * MAX_POWER;
+                if (botInput.isShot)
                 {
-                    isPowerUp = false;
-                    isShowGuide = false;
                     if (power > 0)
                     {
                         isShoot = true;
                         isLastShoot = true;
                         ballInHand = BallInHand.none;
                     }
-                    isFirst = true;
-                    Entities.ForEach((ref Slider slider, ref NonUniformScale scale) =>
-                    {
-                        if (isFirst)
-                        {
-                            isFirst = false;
-                            scale.Value.z = 0.999f;
-                        }
-                    }).WithoutBurst().Run();
                 }
             }
         }
@@ -291,7 +330,7 @@ namespace Billiards
                     sizeZ = uiObject.size.z;
                 }
             }).WithoutBurst().Run();
-            if (Input.GetMouseButtonDown(0))
+            if (isPlayer && Input.GetMouseButtonDown(0))
             {
                 if (mousePosition.x > left && mousePosition.x < right && mousePosition.z > bottom && mousePosition.z < top)
                 {
@@ -304,7 +343,7 @@ namespace Billiards
                     lastWorldPositionAdjust = mousePosition;
                 }
             }
-            else if (Input.GetMouseButton(0))
+            else if (isPlayer && Input.GetMouseButton(0))
             {
                 if (isAdjustBar)
                 {
@@ -320,7 +359,7 @@ namespace Billiards
                     lastWorldPositionAdjust = mousePosition;
                 }
             }
-            else if (Input.GetMouseButtonUp(0))
+            else if (isPlayer && Input.GetMouseButtonUp(0))
             {
                 isAdjustBoard = isAdjustBar = false;
             }
@@ -331,6 +370,10 @@ namespace Billiards
             int i;
             switch (ballInHand)
             {
+                case BallInHand.none:
+                    HideHandHold();
+                    HideHandMoveFeild();
+                    break;
                 case BallInHand.BreakShot:
                     if (Input.GetMouseButtonDown(0))
                     {
@@ -543,6 +586,56 @@ namespace Billiards
             }
         }
 
+        private void HandleMessage()
+        {
+            if (isShowingMessage)
+            {
+                if (isMessageUp)
+                {
+                    Entities.ForEach((ref Bubble bubble, ref Translation position) =>
+                    {
+                        if (position.Value.z < 0.75f)
+                        {
+                            position.Value.z += 0.02f;
+                        }
+                        else
+                        {
+                            if (timeHangOnMessage > 0)
+                            {
+                                timeHangOnMessage -= Time.DeltaTime;
+                            }
+                            else
+                            {
+                                isMessageUp = false;
+                            }
+                        }
+                    }).WithoutBurst().Run();
+                }
+                else
+                {
+                    Entities.ForEach((ref Bubble bubble, ref Translation position) =>
+                    {
+                        if (position.Value.z > 0f)
+                        {
+                            position.Value.z -= 0.02f;
+                        }
+                        else
+                        {
+                            isMessageUp = true;
+                            isShowingMessage = false;
+                            timeHangOnMessage = 1f;
+                        }
+                    }).WithoutBurst().Run();
+                }
+            }
+        }
+
+        private void HandleEndUpdate()
+        {
+            botInput.isClick = false;
+            botInput.isShot = false;
+        }
+
         private void HitCueBall(float3 force)
         {
             bool isCueBall = true;
@@ -627,6 +720,10 @@ namespace Billiards
             switch (ballInHand)
             {
                 case BallInHand.none:
+                    Entities.ForEach((ref Hand hand, ref Translation position) =>
+                    {
+                        position.Value.x = 1000;
+                    }).WithoutBurst().Run();
                     break;
                 default:
                     Entities.ForEach((ref Hand hand, ref Translation position) =>
@@ -906,5 +1003,56 @@ namespace Billiards
             float3 force = pos2 - pos1;
             rotation.Value = quaternion.LookRotation(new float3(-force.z, 0, force.x), new float3(0, 1, 0));
         }
+
+        public void SetBallInHand(BallInHand ballInHand)
+        {
+            this.ballInHand = ballInHand;
+        }
+
+        public void SetTargetBalls(int[] serials)
+        {
+        }
+
+        public bool ShowMessage(string message)
+        {
+            if (isShowingMessage)
+            {
+                return false;
+            }
+            isShowingMessage = true;
+            timeHangOnMessage = 1 + message.Length * 0.1f;
+            Entity entity = Entity.Null;
+            Entities.ForEach((ref Message m, ref Entity e) =>
+            {
+                entity = e;
+            }).WithoutBurst().Run();
+            TextLayout.SetEntityTextRendererString(EntityManager, entity, message);
+            return true;
+        }
+
+        public void BotClickAtPosition(float3 position)
+        {
+            botInput.position = position;
+            botInput.isClick = true;
+        }
+
+        public void BotChangePower(float scalePower)
+        {
+            botInput.scalePower = scalePower;
+        }
+
+        public void BotShot()
+        {
+            botInput.isShot = true;
+        }
     }
+}
+
+
+public struct BotInput
+{
+    public float3 position;
+    public bool isClick;
+    public float scalePower;
+    public bool isShot;
 }

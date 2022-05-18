@@ -990,5 +990,17 @@ namespace Billiards
                 isHit = false;
             }
         }
+
+        public float3 GetPositionBall(int serial)
+        {
+            if (serial < currentPositionBall.Length)
+            {
+                return currentPositionBall[serial];
+            }
+            else
+            {
+                return new float3(float.NaN,float.NaN,float.NaN);
+            }
+        }
     }
 }
