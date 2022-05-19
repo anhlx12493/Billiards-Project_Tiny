@@ -1,6 +1,7 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Tiny;
+using Unity.Tiny.Animation;
 using Unity.Transforms;
 
 namespace Billiards 
@@ -21,11 +22,12 @@ namespace Billiards
                 case Script.start:
                     if (GameController.Instance != null)
                     {
+                        GameController.Instance.ActiveInteractive();
                         GameController.Instance.isPlayer = false;
                         GameController.Instance.SetBallInHand(GameController.BallInHand.none);
-                        GameController.Instance.BotClickAtPosition(Physics.Instance.GetPositionBall(3));
-                        EnableTargetInfoBall(0, true);
-                        EnableTargetInfoBall(1, true);
+                        GameController.Instance.isPlayer = false;
+                        int[] targetBalls = { 2, 3 };
+                        GameController.Instance.SetTargetBalls(targetBalls);
                         script++;
                     }
                     break;
@@ -116,6 +118,7 @@ namespace Billiards
                 case Script.switch_to_your_turn:
                     if (GameController.Instance.ShowMessage("Your turn"))
                     {
+                        GameController.Instance.ActiveInteractive();
                         GameController.Instance.isPlayer = true;
                         int[] targetBalls = { 1 };
                         GameController.Instance.SetTargetBalls(targetBalls);
@@ -135,11 +138,11 @@ namespace Billiards
                         case 1:
                             if (Physics.Instance.IsBallInPocket(2))
                             {
-                                EnableTargetInfoBall(0, false);
+                                DisableTargetInfoBall(0);
                             }
                             if (Physics.Instance.IsBallInPocket(3))
                             {
-                                EnableTargetInfoBall(1, false);
+                                DisableTargetInfoBall(1);
                             }
                             if (!Physics.Instance.IsAnyBallMoving)
                             {
@@ -161,7 +164,8 @@ namespace Billiards
                     }
                     break;
                 case Script.show_result:
-                    if (Physics.Instance.IsBallInPocket(1) && !Physics.Instance.IsBallInPocket(0))
+                    Debug.Log(GameController.Instance.IsWrongFirstHit);
+                    if (Physics.Instance.IsBallInPocket(1) && !Physics.Instance.IsBallInPocket(0) && !GameController.Instance.IsWrongFirstHit)
                     {
                         ActivePopupWin();
                     }
@@ -197,48 +201,50 @@ namespace Billiards
         private void ActivePopupWin()
         {
             Entity entity = Entity.Null;
-            Entities.ForEach((ref GameManager gameManager) =>
+            Entities.ForEach((ref Popup popup, ref Entity e, ref Translation p) =>
             {
-                entity = gameManager.popupWin;
+                if (popup.subject == Popup.Subject.win)
+                {
+                    entity = e;
+                    p.Value.y = 4;
+                }
             }).WithoutBurst().Run();
             if (entity != Entity.Null)
             {
-                EntityManager.SetEnabled(entity, true);
+                TinyAnimation.SetTime(World, entity,0);
+                TinyAnimation.Play(World, entity);
             }
         }
 
         private void ActivePopupLose()
         {
             Entity entity = Entity.Null;
-            Entities.ForEach((ref GameManager gameManager) =>
+            Entities.ForEach((ref Popup popup, ref Entity e, ref Translation p) =>
             {
-                entity = gameManager.popupLose;
-            }).WithoutBurst().Run();
-            if (entity != Entity.Null)
-            {
-                EntityManager.SetEnabled(entity, true);
-            }
-        }
-
-        private void EnableTargetInfoBall(int serial, bool isActive)
-        {
-            Entity entity = Entity.Null;
-            Entities.ForEach((ref GameManager gameManager) =>
-            {
-                switch (serial)
+                if (popup.subject == Popup.Subject.lose)
                 {
-                    case 0:
-                        entity = gameManager.targetInfoBall0;
-                        break;
-                    case 1:
-                        entity = gameManager.targetInfoBall1;
-                        break;
+                    entity = e;
+                    p.Value.y = 4;
                 }
             }).WithoutBurst().Run();
             if (entity != Entity.Null)
             {
-                EntityManager.SetEnabled(entity, isActive);
+                TinyAnimation.SetTime(World, entity, 0);
+                TinyAnimation.Play(World, entity);
             }
+        }
+
+        private void DisableTargetInfoBall(int serial)
+        {
+            Entity entity = Entity.Null;
+            int i = 0;
+            Entities.ForEach((ref InforTargetBall target, ref Translation position) =>
+            {
+                if (serial == i++)
+                {
+                    position.Value.y = 1000;
+                }
+            }).WithoutBurst().Run();
         }
     }
 }

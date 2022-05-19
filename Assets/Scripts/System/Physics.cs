@@ -605,6 +605,10 @@ namespace Billiards
 
             float3 positionHit;
             bool isHit = false;
+            if (CheckCollisionBallvsBoardLine(serial))
+            {
+                isHit = true;
+            }
 
             if (!isInPocket[serial])
             {
@@ -619,23 +623,21 @@ namespace Billiards
                             if (isHitBall)
                             {
                                 isHit = true;
-                                CheckCollisionBallvsBoardLine(serial);
-                                CheckCollisionBallvsBoardLine(i);
+                                currentExcludeLine[serial] = -1;
+                                currentExcludeLine[ramdomSerial[i]] = -1;
                                 currentMoveAtCollisionBall[serial] = 0;
                                 currentMoveAtCollisionBall[ramdomSerial[i]] = currentVelocityBall[ramdomSerial[i]];
                                 currentPositionBall[serial] = positionHit;
                                 isApplyFriction[ramdomSerial[i]] = false;
-                                currentExcludeLine[serial] = -1;
-                                currentExcludeLine[ramdomSerial[i]] = -1;
+                                CheckCollisionBallvsBoardLine(serial);
                                 CheckCollision(serial, ramdomSerial[i]);
+                                CheckCollisionBallvsBoardLine(ramdomSerial[i]);
                                 CheckCollision(ramdomSerial[i], serial);
                             }
                         }
                     }
                 }
             }
-            if (!isHit && CheckCollisionBallvsBoardLine(serial))
-                isHit = true;
             if (isHit)
                 isApplyFriction[serial] = false;
 

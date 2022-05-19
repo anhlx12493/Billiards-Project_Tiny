@@ -3,7 +3,7 @@
 [GenerateAuthoringComponent]
 public struct Guide : IComponentData
 {
-    public enum ID { hitPoint, LineCueIncidence, LineCueReflection, LineBeHit};
+    public enum ID { hitPoint, hitWrongPoint, LineCueIncidence, LineCueReflection, LineBeHit};
 
     public ID id;
 }

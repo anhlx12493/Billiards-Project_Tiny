@@ -32,6 +32,8 @@ namespace Billiards
 
 
         public bool isPlayer = true;
+        public bool IsInteractive { get; private set; }
+        public bool IsWrongFirstHit { get; private set; }
 
         private InputSystem Input;
         private bool isPowerUp;
@@ -76,18 +78,12 @@ namespace Billiards
         {
             HandleInput();
             HandleRule();
-            if (!isCueBallInPocket)
-            {
-                HandleMoveBallInHand();
-                HandlePower();
-                HandleAdjust();
-                HandleGuide();
-                HandleShoot();
-                if (!isAnyBallMoving)
-                {
-                    HandleShowGlow();
-                }
-            }
+            HandleMoveBallInHand();
+            HandlePower();
+            HandleAdjust();
+            HandleGuide();
+            HandleShoot();
+            HandleShowGlow();
             HandleMessage();
 
             HandleEndUpdate();
@@ -132,7 +128,7 @@ namespace Billiards
         private void HandleGuide()
         {
             int i;
-            if (isShowGuide && !isBallInHandMoving && !isCueBallInPocket)
+            if (IsInteractive && isShowGuide && !isBallInHandMoving && !isCueBallInPocket)
             {
                 if (isPlayer)
                 {
@@ -202,6 +198,8 @@ namespace Billiards
         {
             if (isPlayer)
             {
+                if (!IsInteractive)
+                    return;
                 float top;
                 float left;
                 float right;
@@ -252,6 +250,7 @@ namespace Billiards
                         isShowGuide = false;
                         if (power > 0)
                         {
+                            IsInteractive = false;
                             isShoot = true;
                             isLastShoot = true;
                             ballInHand = BallInHand.none;
@@ -285,7 +284,7 @@ namespace Billiards
 
         private void HandleAdjust()
         {
-            if (isBallInHandMoving)
+            if (isBallInHandMoving && !isPlayer && !IsInteractive)
             {
                 return;
             }
@@ -345,122 +344,132 @@ namespace Billiards
 
         private void HandleMoveBallInHand()
         {
-            int i;
-            switch (ballInHand)
+            if (isPlayer && IsInteractive)
             {
-                case BallInHand.none:
-                    HideHandHold();
-                    HideHandMoveFeild();
-                    break;
-                case BallInHand.BreakShot:
-                    if (Input.GetMouseButtonDown(0))
-                    {
-                        if (StaticFuntion.IsCollisionBall(mousePosition, positionCueBall, 0.2f))
-                        {
-                            isBallInHandMoving = true;
-                            ShowHandMoveFeild();
-                        }
+                int i;
+                switch (ballInHand)
+                {
+                    case BallInHand.none:
                         HideHandHold();
-                    }
-                    else if (Input.GetMouseButton(0))
-                    {
-                        float3 targetPosition = mousePosition;
-                        if (isBallInHandMoving && isDrag)
-                        {
-                            if (targetPosition.x < BORDER_HAND_MOVE_LEFT)
-                            {
-                                targetPosition.x = BORDER_HAND_MOVE_LEFT;
-                            }
-                            if (targetPosition.x > BORDER_BREAK_SHOT_HAND_MOVE_RIGHT)
-                            {
-                                targetPosition.x = BORDER_BREAK_SHOT_HAND_MOVE_RIGHT;
-                            }
-                            if (targetPosition.z < BORDER_HAND_MOVE_BOTTOM)
-                            {
-                                targetPosition.z = BORDER_HAND_MOVE_BOTTOM;
-                            }
-                            if (targetPosition.z > BORDER_HAND_MOVE_TOP)
-                            {
-                                targetPosition.z = BORDER_HAND_MOVE_TOP;
-                            }
-                            SetPositionCueBall(targetPosition);
-                            positionCueBall = targetPosition;
-                            ShowHandMove();
-                        }
-                    }
-                    else if (Input.GetMouseButtonUp(0))
-                    {
-                        isBallInHandMoving = false;
                         HideHandMoveFeild();
-                    }
-                    else
-                    {
-                        ShowHandHold();
                         HideHandMove();
-                    }
-                    break;
-                case BallInHand.Free:
-                    if (Input.GetMouseButtonDown(0))
-                    {
-                        if (StaticFuntion.IsCollisionBall(mousePosition, positionCueBall, 0.2f))
+                        break;
+                    case BallInHand.BreakShot:
+                        if (Input.GetMouseButtonDown(0))
                         {
-                            isBallInHandMoving = true;
-                            ShowHandMoveFeild();
+                            if (StaticFuntion.IsCollisionBall(mousePosition, positionCueBall, 0.2f))
+                            {
+                                isBallInHandMoving = true;
+                                ShowHandMoveFeild();
+                            }
+                            HideHandHold();
                         }
-                        HideHandHold();
-                    }
-                    else if (Input.GetMouseButton(0))
-                    {
-                        float3 targetPosition = mousePosition;
-                        if (isBallInHandMoving && isDrag)
+                        else if (Input.GetMouseButton(0))
                         {
-                            if (targetPosition.x < BORDER_HAND_MOVE_LEFT)
+                            float3 targetPosition = mousePosition;
+                            if (isBallInHandMoving && isDrag)
                             {
-                                targetPosition.x = BORDER_HAND_MOVE_LEFT;
-                            }
-                            if (targetPosition.x > BORDER_HAND_MOVE_RIGHT)
-                            {
-                                targetPosition.x = BORDER_HAND_MOVE_RIGHT;
-                            }
-                            if (targetPosition.z < BORDER_HAND_MOVE_BOTTOM)
-                            {
-                                targetPosition.z = BORDER_HAND_MOVE_BOTTOM;
-                            }
-                            if (targetPosition.z > BORDER_HAND_MOVE_TOP)
-                            {
-                                targetPosition.z = BORDER_HAND_MOVE_TOP;
-                            }
-                            bool isHitAnyBall = false;
-                            i = 0;
-                            Entities.ForEach((ref Ball ball, ref Translation position) =>
-                            {
-                                if (i++ != 0)
+                                if (targetPosition.x < BORDER_HAND_MOVE_LEFT)
                                 {
-                                    if (!isHitAnyBall && StaticFuntion.IsCollisionBall(targetPosition, position.Value))
-                                    {
-                                        isHitAnyBall = true;
-                                    }
+                                    targetPosition.x = BORDER_HAND_MOVE_LEFT;
                                 }
-                            }).WithoutBurst().Run();
-                            if (!isHitAnyBall)
-                            {
+                                if (targetPosition.x > BORDER_BREAK_SHOT_HAND_MOVE_RIGHT)
+                                {
+                                    targetPosition.x = BORDER_BREAK_SHOT_HAND_MOVE_RIGHT;
+                                }
+                                if (targetPosition.z < BORDER_HAND_MOVE_BOTTOM)
+                                {
+                                    targetPosition.z = BORDER_HAND_MOVE_BOTTOM;
+                                }
+                                if (targetPosition.z > BORDER_HAND_MOVE_TOP)
+                                {
+                                    targetPosition.z = BORDER_HAND_MOVE_TOP;
+                                }
                                 SetPositionCueBall(targetPosition);
                                 positionCueBall = targetPosition;
+                                ShowHandMove();
                             }
-                            ShowHandMove();
                         }
-                    }
-                    else if (Input.GetMouseButtonUp(0))
-                    {
-                        isBallInHandMoving = false;
-                        HideHandMoveFeild();
-                    }
-                    else
-                    {
-                        ShowHandHold();
-                        HideHandMove();
-                    }
-                    break;
+                        else if (Input.GetMouseButtonUp(0))
+                        {
+                            isBallInHandMoving = false;
+                            HideHandMoveFeild();
+                        }
+                        else
+                        {
+                            ShowHandHold();
+                            HideHandMove();
+                        }
+                        break;
+                    case BallInHand.Free:
+                        if (Input.GetMouseButtonDown(0))
+                        {
+                            if (StaticFuntion.IsCollisionBall(mousePosition, positionCueBall, 0.2f))
+                            {
+                                isBallInHandMoving = true;
+                                ShowHandMoveFeild();
+                            }
+                            HideHandHold();
+                        }
+                        else if (Input.GetMouseButton(0))
+                        {
+                            float3 targetPosition = mousePosition;
+                            if (isBallInHandMoving && isDrag)
+                            {
+                                if (targetPosition.x < BORDER_HAND_MOVE_LEFT)
+                                {
+                                    targetPosition.x = BORDER_HAND_MOVE_LEFT;
+                                }
+                                if (targetPosition.x > BORDER_HAND_MOVE_RIGHT)
+                                {
+                                    targetPosition.x = BORDER_HAND_MOVE_RIGHT;
+                                }
+                                if (targetPosition.z < BORDER_HAND_MOVE_BOTTOM)
+                                {
+                                    targetPosition.z = BORDER_HAND_MOVE_BOTTOM;
+                                }
+                                if (targetPosition.z > BORDER_HAND_MOVE_TOP)
+                                {
+                                    targetPosition.z = BORDER_HAND_MOVE_TOP;
+                                }
+                                bool isHitAnyBall = false;
+                                i = 0;
+                                Entities.ForEach((ref Ball ball, ref Translation position) =>
+                                {
+                                    if (i++ != 0)
+                                    {
+                                        if (!isHitAnyBall && StaticFuntion.IsCollisionBall(targetPosition, position.Value))
+                                        {
+                                            isHitAnyBall = true;
+                                        }
+                                    }
+                                }).WithoutBurst().Run();
+                                if (!isHitAnyBall)
+                                {
+                                    SetPositionCueBall(targetPosition);
+                                    positionCueBall = targetPosition;
+                                }
+                                ShowHandMove();
+                            }
+                        }
+                        else if (Input.GetMouseButtonUp(0))
+                        {
+                            isBallInHandMoving = false;
+                            HideHandMoveFeild();
+                        }
+                        else
+                        {
+                            ShowHandHold();
+                            HideHandMove();
+                        }
+                        break;
+                }
+            }
+            else
+            {
+                HideHandHold();
+                HideHandMoveFeild();
+                HideHandMove();
             }
         }
 
@@ -485,13 +494,13 @@ namespace Billiards
                 }
                 else
                 {
-                    if (isBallInHandMoving)
+                    if (IsInteractive)
                     {
-                        HideCue();
+                        ShowCue();
                     }
                     else
                     {
-                        ShowCue();
+                        HideCue();
                     }
                     if (!isShowGuide)
                     {
@@ -503,7 +512,6 @@ namespace Billiards
                         isShowGuide = true;
                         ShowCue();
                         HideCue();
-                        ShowGuide(direction);
                         HideGuide();
                     }
                 }
@@ -513,6 +521,10 @@ namespace Billiards
 
         private void HandleShowGlow()
         {
+            if (isAnyBallMoving && !IsInteractive)
+            {
+                return;
+            }
             if (isAbleShowGlow)
             {
                 Entity mat = Entity.Null;
@@ -664,17 +676,10 @@ namespace Billiards
 
         private void HideHandMoveFeild()
         {
-            switch (ballInHand)
+            Entities.ForEach((ref HandMoveFeild moveFeild, ref Translation position) =>
             {
-                case BallInHand.none:
-                    break;
-                default:
-                    Entities.ForEach((ref HandMoveFeild moveFeild, ref Translation position) =>
-                    {
-                        position.Value.x = 1000;
-                    }).WithoutBurst().Run();
-                    break;
-            }
+                position.Value.x = 1000;
+            }).WithoutBurst().Run();
         }
 
         private void ShowHandHold()
@@ -729,17 +734,10 @@ namespace Billiards
 
         private void HideHandMove()
         {
-            switch (ballInHand)
+            Entities.ForEach((ref HandMove hand, ref Translation position) =>
             {
-                case BallInHand.none:
-                    break;
-                default:
-                    Entities.ForEach((ref HandMove hand, ref Translation position) =>
-                    {
-                        position.Value.x = 1000;
-                    }).WithoutBurst().Run();
-                    break;
-            }
+                position.Value.x = 1000;
+            }).WithoutBurst().Run();
         }
 
 
@@ -815,7 +813,6 @@ namespace Billiards
             float3 posTargetBall = float3.zero;
             float3 hitPosition = float3.zero;
             bool isHit = false;
-
             float nearestDistance = float.MaxValue;
             float currentDistance;
             bool isCurrentHit;
@@ -892,26 +889,69 @@ namespace Billiards
                         StaticFuntion.VelocityAfterCollisionBall(positionCueBall, position.Value, force, float3.zero, out isCurrentHit, out currentHitPosition, ref velocityRootOut, ref velocityTargetOut);
                     }
                 }).WithoutBurst().Run();
+                if (serialHitBall > 0 && !isTargetBalls[serialHitBall])
+                {
+                    IsWrongFirstHit = true;
+                }
+                else
+                {
+                    IsWrongFirstHit = false;
+                }
                 Entities.ForEach((ref Guide guide, ref Translation position, ref Rotation rotation, ref NonUniformScale scale) =>
                 {
                     switch (guide.id)
                     {
                         case Guide.ID.hitPoint:
-                            position.Value = hitPosition;
+                            if (IsWrongFirstHit)
+                            {
+                                position.Value.y = 1000;
+                            }
+                            else
+                            {
+                                position.Value = hitPosition;
+                                position.Value.y = 1;
+                            }
+                            break;
+                        case Guide.ID.hitWrongPoint:
+                            if (IsWrongFirstHit)
+                            {
+                                position.Value = hitPosition;
+                                position.Value.y = 1.1f;
+                            }
+                            else
+                            {
+                                position.Value.y = 1000;
+                            }
                             break;
                         case Guide.ID.LineCueIncidence:
                             DrawLine(ref position, ref rotation, ref scale, positionCueBall, hitPosition);
+                            position.Value.y = 1;
                             break;
                         case Guide.ID.LineCueReflection:
-                            float3 cueReflectPosition = hitPosition + velocityRootOut * (1f / StaticFuntion.GetSizeVector(force));
-                            DrawLine(ref position, ref rotation, ref scale, hitPosition, cueReflectPosition);
+                            if (IsWrongFirstHit)
+                            {
+                                position.Value.y = 1000;
+                            }
+                            else
+                            {
+                                float3 cueReflectPosition = hitPosition + velocityRootOut * (1f / StaticFuntion.GetSizeVector(force));
+                                DrawLine(ref position, ref rotation, ref scale, hitPosition, cueReflectPosition);
+                                position.Value.y = 1;
+                            }
                             break;
                         case Guide.ID.LineBeHit:
-                            float3 reflectPosition = posTargetBall + velocityTargetOut * (1f / StaticFuntion.GetSizeVector(force));
-                            DrawLine(ref position, ref rotation, ref scale, posTargetBall, reflectPosition);
+                            if (IsWrongFirstHit)
+                            {
+                                position.Value.y = 1000;
+                            }
+                            else
+                            {
+                                float3 reflectPosition = posTargetBall + velocityTargetOut * (1f / StaticFuntion.GetSizeVector(force));
+                                DrawLine(ref position, ref rotation, ref scale, posTargetBall, reflectPosition);
+                                position.Value.y = 1;
+                            }
                             break;
                     }
-                    position.Value.y = 1;
                 }).WithoutBurst().Run();
             }
             else
@@ -924,25 +964,29 @@ namespace Billiards
                         {
                             case Guide.ID.hitPoint:
                                 position.Value = hitPosition;
+                                position.Value.y = 1;
+                                break;
+                            case Guide.ID.hitWrongPoint:
+                                position.Value.y = 1000;
                                 break;
                             case Guide.ID.LineCueIncidence:
                                 DrawLine(ref position, ref rotation, ref scale, positionCueBall, hitPosition);
+                                position.Value.y = 1;
                                 break;
                             case Guide.ID.LineCueReflection:
-                                position.Value = new float3(1000, position.Value.y, 1000);
+                                position.Value.y = 1000;
                                 break;
                             case Guide.ID.LineBeHit:
-                                position.Value = new float3(1000, position.Value.y, 1000);
+                                position.Value.y = 1000;
                                 break;
                         }
-                        position.Value.y = 1;
                     }).WithoutBurst().Run();
                 }
                 else
                 {
                     Entities.ForEach((ref Guide guide, ref Translation position, ref Rotation rotation, ref NonUniformScale scale) =>
                     {
-                        position.Value = new float3(1000, position.Value.y, 1000);
+                        position.Value.y = 1000;
                     }).WithoutBurst().Run();
                 }
             }
@@ -1050,6 +1094,18 @@ namespace Billiards
                     Physics.Instance.GetBallOutOfTrack(0);
                     return true;
                 }
+            }
+            return false;
+        }
+
+        public bool ActiveInteractive()
+        {
+            if (IsInteractive)
+                return true;
+            if (!isShoot && !isAnyBallMoving && !isAnyBallMoving && !isCueBallInPocket)
+            {
+                IsInteractive = true;
+                return true;
             }
             return false;
         }
