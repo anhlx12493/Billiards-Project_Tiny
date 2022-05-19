@@ -31,7 +31,7 @@ namespace Billiards
         public static GameController Instance;
 
 
-        public bool isPlayer;
+        public bool isPlayer = true;
 
         private InputSystem Input;
         private bool isPowerUp;
@@ -95,33 +95,9 @@ namespace Billiards
 
         private void HandleRule()
         {
-            if (Physics.Instance.IsBallInPocket(0))
-            {
-                isCueBallInPocket = true;
-                if (!isAnyBallMoving && !Physics.Instance.IsAnyBallRollingInTrack())
-                {
-                    isCueBallInPocket = false;
-                    ballInHand = BallInHand.Free;
-                    SetPositionCueBall(float3.zero);
-                    Physics.Instance.GetBallOutOfTrack(0);
-                }
-            }
             if (isUpdateTarget)
             {
                 isUpdateTarget = false;
-                int i = 0;
-                Entities.ForEach((ref Ball ball, ref Translation position) =>
-                {
-                    if (position.Value.y > -1)
-                    {
-                        isTargetBalls[i++] = true;
-                    }
-                    else
-                    {
-                        isTargetBalls[i++] = false;
-                    }
-                }).WithoutBurst().Run();
-                isTargetBalls[0] = false;
             }
             else
                 if (!isAnyBallMoving)
@@ -150,6 +126,7 @@ namespace Billiards
             positionCueBall = GetPositionCueBall();
             isAnyBallMoving = Physics.Instance.IsAnyBallMoving;
             lastMousePosition = mousePosition;
+            isCueBallInPocket = Physics.Instance.IsBallInPocket(0);
         }
 
         private void HandleGuide()
@@ -199,6 +176,7 @@ namespace Billiards
                         isSmoothRotating = true;
                         speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
                     }
+                    HideGuide();
                 }
                 if (isSmoothRotating)
                 {
@@ -520,7 +498,6 @@ namespace Billiards
                         if (isLastShoot)
                         {
                             isLastShoot = false;
-                            direction = GetPositionClosestTargetBall() - positionCueBall;
                         }
                         isSmoothRotating = false;
                         isShowGuide = true;
@@ -573,7 +550,7 @@ namespace Billiards
                 i = 0;
                 Entities.ForEach((ref Glow glow, ref MeshRenderer meshRenderer, ref Translation position) =>
                 {
-                    if (isTargetBalls[i++])
+                    if (isPlayer && isTargetBalls[i++])
                     {
                         meshRenderer.material = mat;
                         position.Value.y = 0;
@@ -985,13 +962,14 @@ namespace Billiards
             int i = 0;
             Entities.ForEach((ref Ball ball, ref Translation position) =>
             {
-                if (i++ != 0 && position.Value.y > -1f)
+                if (i != 0 && isTargetBalls[i])
                 {
                     if (StaticFuntion.GetPowSizeVector2(positionClosest - positionCueBall) > StaticFuntion.GetPowSizeVector2(position.Value - positionCueBall))
                     {
                         positionClosest = position.Value;
                     }
                 }
+                i++;
             }).WithoutBurst().Run();
             return positionClosest;
         }
@@ -1011,6 +989,19 @@ namespace Billiards
 
         public void SetTargetBalls(int[] serials)
         {
+            int i;
+            for (i = 0; i < isTargetBalls.Length; i++)
+            {
+                isTargetBalls[i] = false;
+            }
+            if (serials != null)
+            {
+                for (i = 0; i < serials.Length; i++)
+                {
+                    isTargetBalls[serials[i]] = true;
+                }
+            }
+            direction = GetPositionClosestTargetBall() - positionCueBall;
         }
 
         public bool ShowMessage(string message)
@@ -1044,6 +1035,23 @@ namespace Billiards
         public void BotShot()
         {
             botInput.isShot = true;
+        }
+
+        public bool GetBallOutOfTrack(int serial)
+        {
+            if (Physics.Instance.IsBallInPocket(serial))
+            {
+                isCueBallInPocket = true;
+                if (!isAnyBallMoving && !Physics.Instance.IsAnyBallRollingInTrack())
+                {
+                    isCueBallInPocket = false;
+                    ballInHand = BallInHand.Free;
+                    SetPositionCueBall(float3.zero);
+                    Physics.Instance.GetBallOutOfTrack(0);
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

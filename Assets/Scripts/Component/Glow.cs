@@ -5,6 +5,4 @@ using UnityEngine;
 [GenerateAuthoringComponent]
 public struct Glow : IComponentData
 {
-    public int serialBall;
-    public int serial;
 }

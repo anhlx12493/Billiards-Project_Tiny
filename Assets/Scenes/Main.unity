@@ -517,8 +517,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: -4.364}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
-  - {fileID: 210141081}
   - {fileID: 1030131841}
+  - {fileID: 210141081}
   m_Father: {fileID: 498271562}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1455,7 +1455,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &210141081
 Transform:
   m_ObjectHideFlags: 0
@@ -1470,7 +1470,7 @@ Transform:
   - {fileID: 6453386335718050439}
   - {fileID: 1948018756}
   m_Father: {fileID: 67558788}
-  m_RootOrder: 0
+  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &225109500
 GameObject:
@@ -5088,7 +5088,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1030131841
 Transform:
   m_ObjectHideFlags: 0
@@ -5103,7 +5103,7 @@ Transform:
   - {fileID: 6151638}
   - {fileID: 1036486321}
   m_Father: {fileID: 67558788}
-  m_RootOrder: 1
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1031263863
 GameObject:
@@ -7128,7 +7128,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1437469925}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.254, y: 0, z: 0.882}
+  m_LocalPosition: {x: 1.26249, y: 0, z: 0.879508}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -10056,6 +10056,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2078046704}
+  - component: {fileID: 2078046705}
   - component: {fileID: 2078046703}
   m_Layer: 0
   m_Name: GameManager
@@ -10093,6 +10094,22 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 6
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2078046705
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2078046702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46b85f3068a14674091d031296ca4474, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  popupWin: {fileID: 111000456}
+  popupLose: {fileID: 290730137}
+  targetInfoBall0: {fileID: 1030131840}
+  targetInfoBall1: {fileID: 210141080}
 --- !u!1 &2093500066
 GameObject:
   m_ObjectHideFlags: 0
