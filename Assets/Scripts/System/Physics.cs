@@ -679,7 +679,11 @@ namespace Billiards
                 currentExcludeLine[serial] = serialBoadLine;
                 if (isInPocket[serial])
                 {
-                    currentVelocityBall[serial] *= 0.1f;
+                    currentVelocityBall[serial] *= 0.2f;
+                }
+                else
+                {
+                    currentVelocityBall[serial] *= 0.9f;
                 }
             }
             else

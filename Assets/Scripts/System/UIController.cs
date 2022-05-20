@@ -5,6 +5,7 @@ using Unity.Tiny.Input;
 using Unity.Tiny.UI;
 using Unity.Transforms;
 using Unity.Tiny.Rendering;
+using System.Runtime.InteropServices;
 
 namespace Billiards
 {
@@ -24,6 +25,9 @@ namespace Billiards
         private float currentHaftHeightSizeCamera = (float)HAFT_HEIGHT_SIZE_CAMERA;
         private float currentHeightSizeCamera = (float)HEIGHT_SIZE_CAMERA;
 
+        [DllImport("__Internal")]
+        private static extern void OpenStore();
+
 
         protected override void OnStartRunning()
         {
@@ -40,6 +44,8 @@ namespace Billiards
             UpdateCamera();
             lastScreenWidth = screenWidth;
             lastScreenHeight = screenHeight;
+            HandleFXRotateEvently();
+            HandleButton();
         }
 
         private void UpdateCamera()
@@ -101,5 +107,48 @@ namespace Billiards
                 }
             }).WithoutBurst().Run();
         }
+
+        private void HandleFXRotateEvently()
+        {
+            Entities.ForEach((ref VFXRotateEvently fx, ref Rotation rotation) =>
+            {
+                rotation.Value = math.mul(rotation.Value, quaternion.RotateY(fx.speed * Time.DeltaTime));
+            }).WithoutBurst().Run();
+        }
+
+        private void HandleButton()
+        {
+            bool isClick = false;
+            string infoClick = "";
+            Entities.ForEach((ref UIButton button, ref LocalToWorld localToWorld) =>
+            {
+                if (localToWorld.Position.y < 20) {
+                    if (WorldMousePosition.x > button.clickFeild.left + localToWorld.Position.x && WorldMousePosition.x < button.clickFeild.right + localToWorld.Position.x
+                        && WorldMousePosition.z > button.clickFeild.bottom + localToWorld.Position.z && WorldMousePosition.z < button.clickFeild.top + localToWorld.Position.z)
+                    {
+                        isClick = true;
+                    }
+                }
+                if (isClick && Input.GetMouseButtonDown(0))
+                {
+                    infoClick = button.subject.ToString();
+                    switch (button.subject)
+                    {
+                        case UIButton.Subject.Continue:
+                            OpenStore();
+                            break;
+                        case UIButton.Subject.Replay:
+                            OpenStore();
+                            break;
+                    }
+                }
+            }).WithoutBurst().Run();
+            if (infoClick != "")
+            {
+                Debug.Log(infoClick);
+            }
+        }
+
+
     }
 }

@@ -164,7 +164,6 @@ namespace Billiards
                     }
                     break;
                 case Script.show_result:
-                    Debug.Log(GameController.Instance.IsWrongFirstHit);
                     if (Physics.Instance.IsBallInPocket(1) && !Physics.Instance.IsBallInPocket(0) && !GameController.Instance.IsWrongFirstHit)
                     {
                         ActivePopupWin();
