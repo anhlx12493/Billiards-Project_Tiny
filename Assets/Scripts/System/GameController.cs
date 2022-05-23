@@ -177,9 +177,9 @@ namespace Billiards
                 if (isSmoothRotating)
                 {
                     float currentAngle = StaticFuntion.GetAngle(direction, targetDirection);
-                    if (math.abs(currentAngle) > math.abs(speedSmoothRotate))
+                    if (math.abs(currentAngle) > 0.001f)
                     {
-                        StaticFuntion.RotateVectorWithoutSize2(ref direction, speedSmoothRotate);
+                        StaticFuntion.RotateVectorWithoutSize2(ref direction, currentAngle * 0.3f);
                     }
                     else
                     {
@@ -266,6 +266,10 @@ namespace Billiards
                         }
                     }
                 }
+                else
+                {
+                    power = 0;
+                }
             }
             else
             {
@@ -313,11 +317,13 @@ namespace Billiards
                 {
                     isAdjustBar = true;
                     lastWorldPositionAdjust = mousePosition;
+                    targetDirection = direction;
                 }
                 else if (!isAdjustBar && !isPowerUp)
                 {
                     isAdjustBoard = true;
                     lastWorldPositionAdjust = mousePosition;
+                    targetDirection = direction;
                 }
             }
             else if (isPlayer && Input.GetMouseButton(0))
@@ -326,14 +332,16 @@ namespace Billiards
                 {
                     serial = 0;
                     adjustUp = mousePosition.z - lastWorldPositionAdjust.z;
-                    StaticFuntion.RotateVectorWithoutSize2(ref direction, adjustUp * 0.1f);
+                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.5f);
                     lastWorldPositionAdjust = mousePosition;
+                    isSmoothRotating = true;
                 }
                 else if (isAdjustBoard)
                 {
                     adjustUp = StaticFuntion.GetAngle(lastWorldPositionAdjust - positionCueBall, mousePosition - positionCueBall);
-                    StaticFuntion.RotateVectorWithoutSize2(ref direction, adjustUp * 0.1f);
+                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.5f);
                     lastWorldPositionAdjust = mousePosition;
+                    isSmoothRotating = true;
                 }
             }
             else if (isPlayer && Input.GetMouseButtonUp(0))

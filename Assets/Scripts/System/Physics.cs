@@ -646,7 +646,7 @@ namespace Billiards
                 if (StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]) <= StaticFuntion.GetPowSizeVector2(currentVelocityBall[serial]))
                 {
                     StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest], currentVelocityBall[serial], currentVelocityBall[serialClosest],
-                    out isHitBall, out positionHit, ref velocityA, ref velocityB);
+                    out isHitBall, out positionHitBall, ref velocityA, ref velocityB);
                 }
             }
             if (isHitBall)
@@ -666,7 +666,7 @@ namespace Billiards
                     isApplyFriction[serialClosest] = false;
                     if (!CheckCollision(serial))
                     {
-                        currentPositionBall[serial] = positionHitBall;
+                        //currentPositionBall[serial] = positionHitBall;
                     }
                     CheckCollision(serialClosest);
                 }
