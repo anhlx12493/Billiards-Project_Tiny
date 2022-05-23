@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Physics;
@@ -6,6 +7,7 @@ using Unity.Physics.Extensions;
 using Unity.Tiny;
 using Unity.Tiny.Input;
 using Unity.Transforms;
+using Random = Unity.Mathematics.Random;
 
 namespace Billiards
 {
@@ -604,38 +606,81 @@ namespace Billiards
         {
 
             float3 positionHit;
-            bool isHit = false;
-            if (CheckCollisionBallvsBoardLine(serial))
-            {
-                isHit = true;
-            }
-
-            if (!isInPocket[serial])
+            bool isHit;
+            int serialClosest = -1;
+            float powClosest = float.MaxValue;
+            float curentPowClowsest;
+            float3 velocityA = float3.zero;
+            float3 velocityB = float3.zero;
+            float3 positionHitBall = float3.zero;
+            bool isHitBall;
+            if (!isInPocket[serial] && IsBallMoving(serial))
             {
                 for (int i = 0; i < currentPositionBall.Length; i++)
                 {
-                    if (!isInPocket[ramdomSerial[i]] && serial != ramdomSerial[i] && ramdomSerial[i] != excludeCheck)
+                    if (!isInPocket[i] && serial != i && i != excludeCheck)
                     {
-                        if (IsCollisionBall(currentPositionBall[serial] + currentMoveAtCollisionBall[serial], currentPositionBall[ramdomSerial[i]] + currentMoveAtCollisionBall[ramdomSerial[i]]))
+                        //if (IsCollisionBall(currentPositionBall[serial] + currentVelocityBall[serial], currentPositionBall[i] + currentVelocityBall[i]))
                         {
-                            StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[ramdomSerial[i]], currentVelocityBall[serial], currentVelocityBall[ramdomSerial[i]],
-                                out bool isHitBall, out positionHit, ref currentVelocityBall[serial], ref currentVelocityBall[ramdomSerial[i]]);
-                            if (isHitBall)
+                            velocityA = currentVelocityBall[serial];
+                            velocityB = currentVelocityBall[i];
+                            curentPowClowsest = StaticFuntion.GetPowSizeVector2(currentPositionBall[i] - currentPositionBall[serial]);
+                            if (powClosest > curentPowClowsest)
                             {
-                                isHit = true;
-                                currentExcludeLine[serial] = -1;
-                                currentExcludeLine[ramdomSerial[i]] = -1;
-                                currentMoveAtCollisionBall[serial] = 0;
-                                currentMoveAtCollisionBall[ramdomSerial[i]] = currentVelocityBall[ramdomSerial[i]];
-                                currentPositionBall[serial] = positionHit;
-                                isApplyFriction[ramdomSerial[i]] = false;
-                                CheckCollisionBallvsBoardLine(serial);
-                                CheckCollision(serial, ramdomSerial[i]);
-                                CheckCollisionBallvsBoardLine(ramdomSerial[i]);
-                                CheckCollision(ramdomSerial[i], serial);
+                                StaticFuntion.GetHitPositionBallToBall(currentPositionBall[serial], currentPositionBall[i], currentVelocityBall[serial], out isHitBall, out positionHit);
+                                if (isHitBall)
+                                {
+                                    powClosest = curentPowClowsest;
+                                    serialClosest = i;
+                                    positionHitBall = positionHit;
+                                }
                             }
                         }
                     }
+                }
+            }
+            GetHitPositionBallToBoardLine(serial, -1, out isHit, out positionHit, out int serialBoadLine);
+            isHitBall = false;
+            if (serialClosest >= 0)
+            {
+                if (StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]) <= StaticFuntion.GetPowSizeVector2(currentVelocityBall[serial]))
+                {
+                    StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest], currentVelocityBall[serial], currentVelocityBall[serialClosest],
+                    out isHitBall, out positionHit, ref velocityA, ref velocityB);
+                }
+            }
+            if (isHitBall)
+            {
+                if (isHit && StaticFuntion.GetPowSizeVector2(positionHit - currentPositionBall[serial]) < StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]))
+                {
+                    HandleCollisionBallvsBoardLine(serial, positionHit, serialBoadLine);
+                    CheckCollision(serial);
+                }
+                else
+                {
+                    isHit = true;
+                    currentVelocityBall[serial] = velocityA;
+                    currentVelocityBall[serialClosest] = velocityB;
+                    currentExcludeLine[serial] = -1;
+                    currentExcludeLine[serialClosest] = -1;
+                    isApplyFriction[serialClosest] = false;
+                    if (!CheckCollision(serial))
+                    {
+                        currentPositionBall[serial] = positionHitBall;
+                    }
+                    CheckCollision(serialClosest);
+                }
+            }
+            else
+            {
+                if (isHit)
+                {
+                    HandleCollisionBallvsBoardLine(serial, positionHit, serialBoadLine);
+                    CheckCollision(serial);
+                }
+                else
+                {
+                    currentExcludeLine[serial] = -1;
                 }
             }
             if (isHit)
@@ -644,58 +689,48 @@ namespace Billiards
             return isHit;
         }
 
-        private bool CheckCollisionBallvsBoardLine(int serial)
+        private void HandleCollisionBallvsBoardLine(int serial, float3 positionHit, int serialBoadLine)
         {
-            float3 positionHit;
-            GetHitPositionBallToBoardLine(serial, currentExcludeLine[serial], out bool isHit, out positionHit, out int serialBoadLine);
-
-            if (isHit)
+            bool isHaveResult;
+            positionHit.y = 0;
+            float3 positionIn = positionHit - currentVelocityBall[serial];
+            float3 directionVectorLine;
+            if (serialBoadLine < BoardLine.Length - 1)
             {
-                bool isHaveResult;
-                positionHit.y = 0;
-                float3 positionIn = positionHit - currentVelocityBall[serial];
-                float3 directionVectorLine;
-                if (serialBoadLine < BoardLine.Length - 1)
-                {
-                    directionVectorLine = BoardLine[serialBoadLine + 1] - BoardLine[serialBoadLine];
-                }
-                else
-                {
-                    directionVectorLine = BoardLine[0] - BoardLine[BoardLine.Length - 1];
-                }
-                float a1 = -directionVectorLine.z;
-                float b1 = directionVectorLine.x;
-                float c1 = -a1 * positionHit.x - b1 * positionHit.z;
-                float a2 = directionVectorLine.x;
-                float b2 = directionVectorLine.z;
-                float c2 = -a2 * positionIn.x - b2 * positionIn.z;
-                float3 positionDrop = GetIntersectionPosition(a1, b1, c1, a2, b2, c2, out isHaveResult);
-                positionDrop = positionHit + positionHit - positionDrop;
-                c1 = -a1 * positionIn.x - b1 * positionIn.z;
-                c2 = -a2 * positionDrop.x - b2 * positionDrop.z;
-                positionDrop = GetIntersectionPosition(a1, b1, c1, a2, b2, c2, out isHaveResult);
-                currentVelocityBall[serial] = positionDrop - positionHit;
-                currentPositionBall[serial] = positionHit;
-                currentExcludeLine[serial] = serialBoadLine;
-                if (isInPocket[serial])
-                {
-                    currentVelocityBall[serial] *= 0.2f;
-                }
-                else
-                {
-                    currentVelocityBall[serial] *= 0.9f;
-                }
+                directionVectorLine = BoardLine[serialBoadLine + 1] - BoardLine[serialBoadLine];
             }
             else
             {
-                currentExcludeLine[serial] = -1;
+                directionVectorLine = BoardLine[0] - BoardLine[BoardLine.Length - 1];
             }
-            return isHit;
+            float a1 = -directionVectorLine.z;
+            float b1 = directionVectorLine.x;
+            float c1 = -a1 * positionHit.x - b1 * positionHit.z;
+            float a2 = directionVectorLine.x;
+            float b2 = directionVectorLine.z;
+            float c2 = -a2 * positionIn.x - b2 * positionIn.z;
+            float3 positionDrop = GetIntersectionPosition(a1, b1, c1, a2, b2, c2, out isHaveResult);
+            positionDrop = positionHit + positionHit - positionDrop;
+            c1 = -a1 * positionIn.x - b1 * positionIn.z;
+            c2 = -a2 * positionDrop.x - b2 * positionDrop.z;
+            positionDrop = GetIntersectionPosition(a1, b1, c1, a2, b2, c2, out isHaveResult);
+            currentPositionBall[serial] = positionHit - StaticFuntion.GetResizeVector2(currentVelocityBall[serial], 0.001f);
+            currentVelocityBall[serial] = positionDrop - positionHit;
+            currentExcludeLine[serial] = serialBoadLine;
+            if (isInPocket[serial])
+            {
+                currentVelocityBall[serial] *= 0.2f;
+            }
+            else
+            {
+                currentVelocityBall[serial] *= 0.9f;
+            }
         }
 
         private void GetHitPositionBallToBoardLine(int serialBall, int serialExcludeBoadLine, out bool isHit, out float3 positionHit, out int serialBoadLine)
         {
-            if (currentPositionBall[serialBall].z > -1.7 && currentPositionBall[serialBall].z < 2 && currentPositionBall[serialBall].x > -4.5f && currentPositionBall[serialBall].x < 4.5f)
+            float3 nextPositionBall = currentPositionBall[serialBall] + currentVelocityBall[serialBall];
+            if (nextPositionBall.z > -1.7 && nextPositionBall.z < 2 && nextPositionBall.x > -4.5f && nextPositionBall.x < 4.5f)
             {
                 isHit = false;
                 positionHit = float3.zero;
@@ -703,7 +738,6 @@ namespace Billiards
                 return;
             }
             serialBoadLine = 0;
-            float3 nextPositionBall = currentPositionBall[serialBall] + currentVelocityBall[serialBall];
             float3 positionBall = currentPositionBall[serialBall];
             float3 closestPositionHit = float3.zero;
             isHit = false;
@@ -711,7 +745,7 @@ namespace Billiards
             bool isFirstHit = true;
             if (serialExcludeBoadLine != BoardLine.Length - 1)
             {
-                GetHitPositionLineToLine(positionBall, nextPositionBall, BoardLine[BoardLine.Length - 1], BoardLine[0], out currentCheckHit, out positionHit);
+                StaticFuntion.GetHitPositionLineToLine(positionBall, nextPositionBall, BoardLine[BoardLine.Length - 1], BoardLine[0], out currentCheckHit, out positionHit);
                 if (currentCheckHit)
                 {
                     if (isFirstHit || math.abs(closestPositionHit.x - positionBall.x) > math.abs(positionHit.x - positionBall.x) ||
@@ -729,7 +763,7 @@ namespace Billiards
             {
                 if (serialExcludeBoadLine != i)
                 {
-                    GetHitPositionLineToLine(positionBall, nextPositionBall, BoardLine[i], BoardLine[i + 1], out currentCheckHit, out positionHit);
+                    StaticFuntion.GetHitPositionLineToLine(positionBall, nextPositionBall, BoardLine[i], BoardLine[i + 1], out currentCheckHit, out positionHit);
                     if (currentCheckHit)
                     {
                         if (isFirstHit || math.abs(closestPositionHit.x - positionBall.x) > math.abs(positionHit.x - positionBall.x) ||
@@ -753,7 +787,7 @@ namespace Billiards
             isHit = false;
             bool currentCheckHit;
             bool isFirstHit = true;
-            GetHitPositionLineToLine(position, nextPositionBall, BoardLine[BoardLine.Length - 1], BoardLine[0], out currentCheckHit, out positionHit);
+            StaticFuntion.GetHitPositionLineToLine(position, nextPositionBall, BoardLine[BoardLine.Length - 1], BoardLine[0], out currentCheckHit, out positionHit);
             if (currentCheckHit)
             {
                 if (isFirstHit || math.abs(closestPositionHit.x - position.x) > math.abs(positionHit.x - position.x) ||
@@ -766,7 +800,7 @@ namespace Billiards
             }
             for (int i = 0; i < BoardLine.Length - 1; i++)
             {
-                GetHitPositionLineToLine(position, nextPositionBall, BoardLine[i], BoardLine[i + 1], out currentCheckHit, out positionHit);
+                StaticFuntion.GetHitPositionLineToLine(position, nextPositionBall, BoardLine[i], BoardLine[i + 1], out currentCheckHit, out positionHit);
                 if (currentCheckHit)
                 {
                     if (isFirstHit || math.abs(closestPositionHit.x - position.x) > math.abs(positionHit.x - position.x) ||

@@ -6,11 +6,19 @@ using Unity.Tiny.UI;
 using Unity.Transforms;
 using Unity.Tiny.Rendering;
 using System.Runtime.InteropServices;
+using System;
 
 namespace Billiards
 {
     public class UIController : SystemBase
     {
+
+        [DllImport("__Internal")]
+        private static extern void OpenStore();
+
+        [DllImport("__Internal")]
+        private static extern void Alert(string s);
+
         private const double HEIGHT_SIZE_CAMERA = 7.24f;
         private const double HAFT_HEIGHT_SIZE_CAMERA = 3.62f;
         private const double POSITION_Y_CAMERA = 0.747f;
@@ -24,9 +32,6 @@ namespace Billiards
 
         private float currentHaftHeightSizeCamera = (float)HAFT_HEIGHT_SIZE_CAMERA;
         private float currentHeightSizeCamera = (float)HEIGHT_SIZE_CAMERA;
-
-        [DllImport("__Internal")]
-        private static extern void OpenStore();
 
 
         protected override void OnStartRunning()
@@ -119,9 +124,10 @@ namespace Billiards
         private void HandleButton()
         {
             bool isClick = false;
-            string infoClick = "";
-            Entities.ForEach((ref UIButton button, ref LocalToWorld localToWorld) =>
+            UIButton button = new UIButton();
+            Entities.ForEach((ref UIButton b, ref LocalToWorld localToWorld) =>
             {
+                button = b;
                 if (localToWorld.Position.y < 20) {
                     if (WorldMousePosition.x > button.clickFeild.left + localToWorld.Position.x && WorldMousePosition.x < button.clickFeild.right + localToWorld.Position.x
                         && WorldMousePosition.z > button.clickFeild.bottom + localToWorld.Position.z && WorldMousePosition.z < button.clickFeild.top + localToWorld.Position.z)
@@ -129,23 +135,18 @@ namespace Billiards
                         isClick = true;
                     }
                 }
-                if (isClick && Input.GetMouseButtonDown(0))
-                {
-                    infoClick = button.subject.ToString();
-                    switch (button.subject)
-                    {
-                        case UIButton.Subject.Continue:
-                            OpenStore();
-                            break;
-                        case UIButton.Subject.Replay:
-                            OpenStore();
-                            break;
-                    }
-                }
             }).WithoutBurst().Run();
-            if (infoClick != "")
+            if (isClick && Input.GetMouseButtonDown(0))
             {
-                Debug.Log(infoClick);
+                switch (button.subject)
+                {
+                    case UIButton.Subject.Continue:
+                        OpenStore();
+                        break;
+                    case UIButton.Subject.Replay:
+                        OpenStore();
+                        break;
+                }
             }
         }
 
