@@ -384,6 +384,22 @@ namespace Billiards
                         currentRotationBall[i].z = -currentVelocityBall[i].x;
                     }
                 }
+                if (currentRotationBall[i].y < 0)
+                {
+                    currentRotationBall[i].y += 0.0005f;
+                    if (currentRotationBall[i].y > 0)
+                    {
+                        currentRotationBall[i].y = 0;
+                    }
+                }
+                else if (currentRotationBall[i].y > 0)
+                {
+                    currentRotationBall[i].y -= 0.0005f;
+                    if (currentRotationBall[i].y < 0)
+                    {
+                        currentRotationBall[i].y = 0;
+                    }
+                }
                 physicsVelocity.SetAngularVelocityWorldSpace(physicsMass, rot, currentRotationBall[i] * 1600);
                 posistion.Value = currentPositionBall[i++];
             }).WithoutBurst().Run();
@@ -653,12 +669,84 @@ namespace Billiards
             {
                 if (isHit && StaticFuntion.GetPowSizeVector2(positionHit - currentPositionBall[serial]) < StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]))
                 {
+                    float3 lastVelocity = currentVelocityBall[serial];
                     HandleCollisionBallvsBoardLine(serial, positionHit, serialBoadLine);
-                    CheckCollision(serial);
+                    lastVelocity = StaticFuntion.GetResizeVector2(lastVelocity, StaticFuntion.GetSizeVector2(currentVelocityBall[serial]));
+                    float3 checkRoll = currentVelocityBall[serial] + lastVelocity;
+                    if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                    }
+                    else
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                    }
                 }
                 else
                 {
                     isHit = true;
+                    float3 lastVelocity = StaticFuntion.GetResizeVector2(currentVelocityBall[serial], StaticFuntion.GetSizeVector2(velocityA));
+                    float3 checkRoll = velocityA + lastVelocity;
+                    if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityA))
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                    }
+                    else
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityA))
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                    }
+                    lastVelocity = StaticFuntion.GetResizeVector2(currentVelocityBall[serial], StaticFuntion.GetSizeVector2(velocityA));
+                    checkRoll = velocityB + lastVelocity;
+                    if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityB))
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                    }
+                    else
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityB))
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                        }
+                    }
                     currentVelocityBall[serial] = velocityA;
                     currentVelocityBall[serialClosest] = velocityB;
                     currentExcludeLine[serial] = -1;
@@ -675,7 +763,32 @@ namespace Billiards
             {
                 if (isHit)
                 {
+                    float3 lastVelocity = currentVelocityBall[serial];
                     HandleCollisionBallvsBoardLine(serial, positionHit, serialBoadLine);
+                    lastVelocity = StaticFuntion.GetResizeVector2(lastVelocity, StaticFuntion.GetSizeVector2(currentVelocityBall[serial]));
+                    float3 checkRoll = currentVelocityBall[serial] + lastVelocity;
+                    if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                    }
+                    else
+                    {
+                        if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
+                        {
+                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                        else
+                        {
+                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                        }
+                    }
                     CheckCollision(serial);
                 }
                 else
@@ -684,7 +797,9 @@ namespace Billiards
                 }
             }
             if (isHit)
+            {
                 isApplyFriction[serial] = false;
+            }
 
             return isHit;
         }

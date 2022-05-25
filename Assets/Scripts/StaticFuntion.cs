@@ -475,6 +475,8 @@ namespace Billiards
 
         public static float3 GetResizeVector2(float3 vector, float size)
         {
+            if (vector.x == 0 && vector.z == 0)
+                return float3.zero;
             float raito = size / math.sqrt(vector.x * vector.x + vector.z * vector.z);
             vector.x *= raito;
             vector.z *= raito;
@@ -483,7 +485,12 @@ namespace Billiards
 
         public static float GetSizeVector(float3 vector)
         {
-            return math.sqrt(vector.x * vector.x + vector.z * vector.z + vector.z * vector.z);
+            return math.sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
+        }
+
+        public static float GetSizeVector2(float3 vector)
+        {
+            return math.sqrt(vector.x * vector.x + vector.z * vector.z);
         }
 
         public static float GetPowSizeVector2(float3 vector)
@@ -602,6 +609,24 @@ namespace Billiards
             else
             {
                 isHit = false;
+            }
+        }
+
+        public static bool IsPositionOnTheLeftOfLine2(float3 position, float3 positionLine1, float3 positionLine2)
+        {
+            float3 vector = positionLine2 - positionLine1;
+            float a = vector.z;
+            float b = -vector.x;
+            float c = -a * positionLine1.x - b * positionLine1.z;
+            if (math.abs(a) > math.abs(b))
+            {
+                float x = -(b * position.z + c) / a;
+                return position.x < x;
+            }
+            else
+            {
+                float z = -(a * position.x + c) / b;
+                return position.z < z;
             }
         }
     }
