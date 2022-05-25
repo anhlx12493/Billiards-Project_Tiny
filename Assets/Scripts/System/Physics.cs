@@ -752,10 +752,7 @@ namespace Billiards
                     currentExcludeLine[serial] = -1;
                     currentExcludeLine[serialClosest] = -1;
                     isApplyFriction[serialClosest] = false;
-                    if (!CheckCollision(serial))
-                    {
-                        //currentPositionBall[serial] = positionHitBall;
-                    }
+                    CheckCollision(serial);
                     CheckCollision(serialClosest);
                 }
             }

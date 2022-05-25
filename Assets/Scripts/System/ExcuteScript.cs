@@ -17,6 +17,19 @@ namespace Billiards
 
         protected override void OnUpdate()
         {
+            //if (GameController.Instance != null)
+            //{
+            //    GameController.Instance.ActiveInteractive();
+            //    if (step == 0)
+            //    {
+            //        GameController.Instance.isPlayer = true;
+            //        GameController.Instance.SetBallInHand(GameController.BallInHand.Free);
+            //        int[] targetBalls = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+            //        GameController.Instance.SetTargetBalls(targetBalls);
+            //        step++;
+            //    }
+            //}
+            //return;
             switch (script)
             {
                 case Script.start:
@@ -111,25 +124,42 @@ namespace Billiards
                             if (!Physics.Instance.IsAnyBallMoving)
                             {
                                 script++;
+                                step = 0;
                             }
                             break;
                     }
                     break;
                 case Script.switch_to_your_turn:
-                    if (GameController.Instance.ShowMessage("Your turn"))
+                    switch (step)
                     {
-                        GameController.Instance.ActiveInteractive();
-                        GameController.Instance.isPlayer = true;
-                        int[] targetBalls = { 1 };
-                        GameController.Instance.SetTargetBalls(targetBalls);
-                        script++;
-                        step = 0;
+                        case 0:
+                            if (GameController.Instance.ShowMessage("Your turn"))
+                            {
+                                GameController.Instance.isPlayer = true;
+                                int[] targetBalls = { 1 };
+                                GameController.Instance.SetTargetBalls(targetBalls);
+                                step++;
+                            }
+                            break;
+                        case 1:
+                            if (GameController.Instance.ActiveInteractive())
+                            {
+                                script++;
+                                step = 0;
+                            }
+                            break;
+
                     }
-                    break;
+                    break; 
                 case Script.wait_result:
                     switch (step)
                     {
                         case 0:
+                            if (GameController.Instance.IsTimeOut)
+                            {
+                                script++;
+                                break;
+                            }
                             if (Physics.Instance.IsAnyBallMoving)
                             {
                                 step++;
@@ -164,6 +194,7 @@ namespace Billiards
                     }
                     break;
                 case Script.show_result:
+                    GameController.Instance.OffTimeDown();
                     if (Physics.Instance.IsBallInPocket(1) && !Physics.Instance.IsBallInPocket(0) && !GameController.Instance.IsWrongFirstHit)
                     {
                         ActivePopupWin();

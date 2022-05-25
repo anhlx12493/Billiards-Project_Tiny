@@ -25,6 +25,7 @@ namespace Billiards
         public const float BORDER_HAND_MOVE_BOTTOM = -2.0f;
 
         private const float MAX_POWER = 0.1f;
+        private const float MAX_TIME = 30f;
 
         public enum BallInHand { none, BreakShot, Free };
 
@@ -34,8 +35,11 @@ namespace Billiards
         public bool isPlayer = true;
         public bool IsInteractive { get; private set; }
         public bool IsWrongFirstHit { get; private set; }
+        public bool IsTiming { get; private set; }
+        public bool IsTimeOut { get; private set; }
 
         private InputSystem Input;
+        private bool isStart = true;
         private bool isPowerUp;
         private bool isAdjustBar;
         private bool isAdjustBoard;
@@ -52,6 +56,7 @@ namespace Billiards
         private bool isAbleShowGlow = true;
         private bool isShowingMessage;
         private bool isMessageUp = true;
+        private bool isStartTimeDown;
         private bool[] isTargetBalls = new bool[16];
         private float3 firstWorldPositionPower;
         private float3 lastWorldPositionAdjust;
@@ -62,9 +67,11 @@ namespace Billiards
         private float3 lastMousePosition;
         private float power;
         private float timeMouseUpCheckDrag;
-        private float speedSmoothRotate;
         private float numberShowGlow = 19;
         private float timeHangOnMessage;
+        private float currentScaleTimeDown;
+        private float maxScaleTimeDown;
+        private float currentTimeTurnPlay;
         private BallInHand ballInHand = BallInHand.BreakShot;
         public BotInput botInput;
 
@@ -85,6 +92,7 @@ namespace Billiards
             HandleShoot();
             HandleShowGlow();
             HandleMessage();
+            HandleTimeDown();
 
             HandleEndUpdate();
         }
@@ -160,7 +168,6 @@ namespace Billiards
                             targetDirection = mousePosition - positionCueBall;
                         }
                         isSmoothRotating = true;
-                        speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
                     }
                     ShowGuide(direction);
                 }
@@ -170,7 +177,6 @@ namespace Billiards
                     {
                         targetDirection = botInput.position - positionCueBall;
                         isSmoothRotating = true;
-                        speedSmoothRotate = StaticFuntion.GetAngle(direction, targetDirection) / 10f;
                     }
                     HideGuide();
                 }
@@ -250,8 +256,12 @@ namespace Billiards
                         isShowGuide = false;
                         if (power > 0)
                         {
-                            IsInteractive = false;
-                            isShoot = true;
+                            if (IsTiming)
+                            {
+                                IsInteractive = false;
+                                IsTiming = false;
+                                isShoot = true;
+                            }
                             isLastShoot = true;
                             ballInHand = BallInHand.none;
                             isFirst = true;
@@ -278,7 +288,12 @@ namespace Billiards
                 {
                     if (power > 0)
                     {
-                        isShoot = true;
+                        if (IsTiming)
+                        {
+                            IsInteractive = false;
+                            IsTiming = false;
+                            isShoot = true;
+                        }
                         isLastShoot = true;
                         ballInHand = BallInHand.none;
                     }
@@ -481,6 +496,77 @@ namespace Billiards
             }
         }
 
+        private void HandleTimeDown()
+        {
+            if (isStart)
+            {
+                maxScaleTimeDown = 0;
+                Entities.ForEach((ref TimeDown timeDown, ref NonUniformScale scale, ref SpriteRenderer spriteRenderer) =>
+                {
+                    if (timeDown.subject == TimeDown.Subject.you)
+                    {
+                        maxScaleTimeDown += scale.Value.x;
+                    }
+                    timeDown.size = scale.Value.x;
+                    scale.Value.x = 0;
+                }).WithoutBurst().Run();
+            }
+            else
+            {
+                if (isStartTimeDown)
+                {
+                    isStartTimeDown = false;
+                    ActiveTimeDown();
+                    currentTimeTurnPlay = 0;
+                    currentScaleTimeDown = 0;
+                    IsTiming = true;
+                }
+                if (IsTiming)
+                {
+                    currentTimeTurnPlay += Time.DeltaTime;
+                    if (currentTimeTurnPlay >= MAX_TIME)
+                    {
+                        IsTiming = false;
+                        IsTimeOut = true;
+                        OffTimeDown();
+                        return;
+                    }
+                    float subValue = (currentTimeTurnPlay / MAX_TIME) * maxScaleTimeDown - currentScaleTimeDown;
+                    if (subValue < 0)
+                        subValue = 0;
+                    currentScaleTimeDown += subValue;
+                    Entities.ForEach((ref TimeDown timeDown, ref NonUniformScale scale, ref SpriteRenderer spriteRenderer) =>
+                    {
+                        if (isPlayer && timeDown.subject == TimeDown.Subject.you || !isPlayer && timeDown.subject == TimeDown.Subject.bot)
+                        {
+                            float scaleColor = currentScaleTimeDown / maxScaleTimeDown;
+                            if (scaleColor < 0.5f)
+                            {
+                                spriteRenderer.Color = math.lerp(Colors.Green.Value, Colors.Yellow.Value, scaleColor * 2);
+                            }
+                            else
+                            {
+                                spriteRenderer.Color = math.lerp(Colors.Yellow.Value, Colors.Red.Value, scaleColor * 2f - 1f);
+                            }
+                            if (subValue > 0f)
+                            {
+                                if (scale.Value.x >= subValue)
+                                {
+                                    scale.Value.x -= subValue;
+                                    subValue = 0;
+                                }
+                                else
+                                {
+                                    subValue -= scale.Value.x;
+                                    scale.Value.x = 0;
+                                }
+                            }
+                        }
+                    }).WithoutBurst().Run();
+                }
+            }
+        }
+
         private void HandleShoot()
         {
             if (isAnyBallMoving)
@@ -631,6 +717,7 @@ namespace Billiards
         {
             botInput.isClick = false;
             botInput.isShot = false;
+            isStart = false;
         }
 
         private void HitCueBall(float3 force)
@@ -1000,6 +1087,30 @@ namespace Billiards
             }
         }
 
+        private void ActiveTimeDown()
+        {
+            Entities.ForEach((ref TimeDown timeDown, ref NonUniformScale scale, ref SpriteRenderer spriteRenderer) =>
+            {
+                if (isPlayer && timeDown.subject == TimeDown.Subject.you || !isPlayer && timeDown.subject == TimeDown.Subject.bot)
+                {
+                    scale.Value.x = timeDown.size;
+                    spriteRenderer.Color = Colors.Green.Value;
+                }
+                else
+                {
+                    scale.Value.x = 0f;
+                }
+            }).WithoutBurst().Run();
+        }
+
+        public void OffTimeDown()
+        {
+            Entities.ForEach((ref TimeDown timeDown, ref NonUniformScale scale) =>
+            {
+                scale.Value.x = 0f;
+            }).WithoutBurst().Run();
+        }
+
         private void HideGuide()
         {
             Entities.ForEach((ref Guide guide, ref Translation position) =>
@@ -1109,10 +1220,12 @@ namespace Billiards
         public bool ActiveInteractive()
         {
             if (IsInteractive)
-                return true;
-            if (!isShoot && !isAnyBallMoving && !isAnyBallMoving && !isCueBallInPocket)
+                return false;
+            if (!isAnyBallMoving && !isCueBallInPocket)
             {
+                isStartTimeDown = true;
                 IsInteractive = true;
+                IsTimeOut = false;
                 return true;
             }
             return false;
