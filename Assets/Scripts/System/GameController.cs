@@ -11,7 +11,7 @@ using Unity.Tiny.Text;
 namespace Billiards
 {
     [UpdateAfter(typeof(UIController))]
-    public class GameController : SystemBase
+    public class GameController : SystemBase, PhysicsEvent
     {
         public const float BOARD_BORDER_TOP = 3.18f;
         public const float BOARD_BORDER_LEFT = -5f;
@@ -24,7 +24,7 @@ namespace Billiards
         public const float BORDER_BREAK_SHOT_HAND_MOVE_RIGHT = -2.4f;
         public const float BORDER_HAND_MOVE_BOTTOM = -2.0f;
 
-        private const float MAX_POWER = 0.1f;
+        private const float MAX_POWER = 0.06f;
         private const float MAX_TIME = 30f;
 
         public enum BallInHand { none, BreakShot, Free };
@@ -34,7 +34,7 @@ namespace Billiards
 
         public bool isPlayer = true;
         public bool IsInteractive { get; private set; }
-        public bool IsWrongFirstHit { get; private set; }
+        public bool IsHitWrongBall { get; private set; }
         public bool IsTiming { get; private set; }
         public bool IsTimeOut { get; private set; }
 
@@ -52,11 +52,11 @@ namespace Billiards
         private bool isSmoothRotating;
         private bool isCueBallInPocket;
         private bool isGlowOpacityUp;
-        private bool isUpdateTarget = true;
         private bool isAbleShowGlow = true;
         private bool isShowingMessage;
         private bool isMessageUp = true;
         private bool isStartTimeDown;
+        private bool isAimWrongBall;
         private bool[] isTargetBalls = new bool[16];
         private float3 firstWorldPositionPower;
         private float3 lastWorldPositionAdjust;
@@ -72,6 +72,7 @@ namespace Billiards
         private float currentScaleTimeDown;
         private float maxScaleTimeDown;
         private float currentTimeTurnPlay;
+        private int serialFirstHit;
         private BallInHand ballInHand = BallInHand.BreakShot;
         public BotInput botInput;
 
@@ -99,20 +100,14 @@ namespace Billiards
 
         private void HandleRule()
         {
-            if (isUpdateTarget)
-            {
-                isUpdateTarget = false;
-            }
-            else
-                if (!isAnyBallMoving)
-            {
-                isUpdateTarget = true;
-                isAbleShowGlow = true;
-            }
         }
 
         private void HandleInput()
         {
+            if (isStart)
+            {
+                Physics.Instance.AddEventListener(this);
+            }
             mousePosition = UIController.WorldMousePosition;
             if (Input.GetMouseButtonDown(0))
             {
@@ -276,10 +271,6 @@ namespace Billiards
                         }
                     }
                 }
-                else
-                {
-                    power = 0;
-                }
             }
             else
             {
@@ -347,14 +338,14 @@ namespace Billiards
                 {
                     serial = 0;
                     adjustUp = mousePosition.z - lastWorldPositionAdjust.z;
-                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.5f);
+                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.25f);
                     lastWorldPositionAdjust = mousePosition;
                     isSmoothRotating = true;
                 }
                 else if (isAdjustBoard)
                 {
                     adjustUp = StaticFuntion.GetAngle(lastWorldPositionAdjust - positionCueBall, mousePosition - positionCueBall);
-                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.5f);
+                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.25f);
                     lastWorldPositionAdjust = mousePosition;
                     isSmoothRotating = true;
                 }
@@ -986,18 +977,18 @@ namespace Billiards
                 }).WithoutBurst().Run();
                 if (serialHitBall > 0 && !isTargetBalls[serialHitBall])
                 {
-                    IsWrongFirstHit = true;
+                    isAimWrongBall = true;
                 }
                 else
                 {
-                    IsWrongFirstHit = false;
+                    isAimWrongBall = false;
                 }
                 Entities.ForEach((ref Guide guide, ref Translation position, ref Rotation rotation, ref NonUniformScale scale) =>
                 {
                     switch (guide.id)
                     {
                         case Guide.ID.hitPoint:
-                            if (IsWrongFirstHit)
+                            if (isAimWrongBall)
                             {
                                 position.Value.y = 1000;
                             }
@@ -1008,7 +999,7 @@ namespace Billiards
                             }
                             break;
                         case Guide.ID.hitWrongPoint:
-                            if (IsWrongFirstHit)
+                            if (isAimWrongBall)
                             {
                                 position.Value = hitPosition;
                                 position.Value.y = 1.1f;
@@ -1023,7 +1014,7 @@ namespace Billiards
                             position.Value.y = 1;
                             break;
                         case Guide.ID.LineCueReflection:
-                            if (IsWrongFirstHit)
+                            if (isAimWrongBall)
                             {
                                 position.Value.y = 1000;
                             }
@@ -1035,7 +1026,7 @@ namespace Billiards
                             }
                             break;
                         case Guide.ID.LineBeHit:
-                            if (IsWrongFirstHit)
+                            if (isAimWrongBall)
                             {
                                 position.Value.y = 1000;
                             }
@@ -1219,16 +1210,31 @@ namespace Billiards
 
         public bool ActiveInteractive()
         {
-            if (IsInteractive)
+            if (IsInteractive && IsTiming)
                 return false;
             if (!isAnyBallMoving && !isCueBallInPocket)
             {
                 isStartTimeDown = true;
                 IsInteractive = true;
                 IsTimeOut = false;
+                serialFirstHit = 0;
+                IsHitWrongBall = false;
+                isAbleShowGlow = true;
                 return true;
             }
             return false;
+        }
+
+        public void OnBall0HitAtBall(int serial)
+        {
+            if (serialFirstHit == 0)
+            {
+                serialFirstHit = serial;
+                if (!isTargetBalls[serial])
+                {
+                    IsHitWrongBall = true;
+                }
+            }
         }
     }
 }

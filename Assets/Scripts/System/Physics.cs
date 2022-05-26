@@ -57,6 +57,8 @@ namespace Billiards
 
         private List<int> listSerialBallInTrack = new List<int>();
 
+        private List<PhysicsEvent> physicsEvents = new List<PhysicsEvent>();
+
         protected override void OnStartRunning()
         {
             Instance = this;
@@ -386,7 +388,7 @@ namespace Billiards
                 }
                 if (currentRotationBall[i].y < 0)
                 {
-                    currentRotationBall[i].y += 0.0005f;
+                    currentRotationBall[i].y += 0.0002f;
                     if (currentRotationBall[i].y > 0)
                     {
                         currentRotationBall[i].y = 0;
@@ -394,7 +396,7 @@ namespace Billiards
                 }
                 else if (currentRotationBall[i].y > 0)
                 {
-                    currentRotationBall[i].y -= 0.0005f;
+                    currentRotationBall[i].y -= 0.0002f;
                     if (currentRotationBall[i].y < 0)
                     {
                         currentRotationBall[i].y = 0;
@@ -636,20 +638,17 @@ namespace Billiards
                 {
                     if (!isInPocket[i] && serial != i && i != excludeCheck)
                     {
-                        //if (IsCollisionBall(currentPositionBall[serial] + currentVelocityBall[serial], currentPositionBall[i] + currentVelocityBall[i]))
+                        velocityA = currentVelocityBall[serial];
+                        velocityB = currentVelocityBall[i];
+                        curentPowClowsest = StaticFuntion.GetPowSizeVector2(currentPositionBall[i] - currentPositionBall[serial]);
+                        if (powClosest > curentPowClowsest)
                         {
-                            velocityA = currentVelocityBall[serial];
-                            velocityB = currentVelocityBall[i];
-                            curentPowClowsest = StaticFuntion.GetPowSizeVector2(currentPositionBall[i] - currentPositionBall[serial]);
-                            if (powClosest > curentPowClowsest)
+                            StaticFuntion.GetHitPositionBallToBall(currentPositionBall[serial], currentPositionBall[i], currentVelocityBall[serial], out isHitBall, out positionHit);
+                            if (isHitBall)
                             {
-                                StaticFuntion.GetHitPositionBallToBall(currentPositionBall[serial], currentPositionBall[i], currentVelocityBall[serial], out isHitBall, out positionHit);
-                                if (isHitBall)
-                                {
-                                    powClosest = curentPowClowsest;
-                                    serialClosest = i;
-                                    positionHitBall = positionHit;
-                                }
+                                powClosest = curentPowClowsest;
+                                serialClosest = i;
+                                positionHitBall = positionHit;
                             }
                         }
                     }
@@ -673,78 +672,101 @@ namespace Billiards
                     HandleCollisionBallvsBoardLine(serial, positionHit, serialBoadLine);
                     lastVelocity = StaticFuntion.GetResizeVector2(lastVelocity, StaticFuntion.GetSizeVector2(currentVelocityBall[serial]));
                     float3 checkRoll = currentVelocityBall[serial] + lastVelocity;
+                    float maxRoll = StaticFuntion.GetSizeVector2(checkRoll) * 1f;
                     if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                         else
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.3f);
                         }
                     }
                     else
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.3f);
                         }
                         else
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                     }
                 }
                 else
                 {
+                    if (serial == 0)
+                    {
+                        bool isHaveNull = false;
+                        foreach (PhysicsEvent physicsEvent in physicsEvents)
+                        {
+                            if (physicsEvent != null)
+                            {
+                                physicsEvent.OnBall0HitAtBall(serialClosest);
+                            }
+                            else
+                            {
+                                isHaveNull = true;
+                            }
+                        }
+                        if (isHaveNull)
+                        {
+                            physicsEvents.Remove(null);
+                        }
+                    }
                     isHit = true;
                     float3 lastVelocity = StaticFuntion.GetResizeVector2(currentVelocityBall[serial], StaticFuntion.GetSizeVector2(velocityA));
                     float3 checkRoll = velocityA + lastVelocity;
+                    float maxRoll = StaticFuntion.GetSizeVector2(checkRoll) * 1f;
                     if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityA))
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.1f);
                         }
                         else
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.1f);
                         }
                     }
                     else
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityA))
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            if (currentRotationBall[serial].y > StaticFuntion.GetSizeVector2(checkRoll) * 1f)
+                                currentRotationBall[serial].y -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
                         }
                         else
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.1f);
                         }
                     }
                     lastVelocity = StaticFuntion.GetResizeVector2(currentVelocityBall[serial], StaticFuntion.GetSizeVector2(velocityA));
                     checkRoll = velocityB + lastVelocity;
+                    maxRoll = StaticFuntion.GetSizeVector2(checkRoll) * 1f;
                     if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityB))
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.1f);
                         }
                         else
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.1f);
                         }
                     }
                     else
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, velocityB))
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.1f);
                         }
                         else
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.1f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.1f);
                         }
                     }
                     currentVelocityBall[serial] = velocityA;
@@ -764,26 +786,27 @@ namespace Billiards
                     HandleCollisionBallvsBoardLine(serial, positionHit, serialBoadLine);
                     lastVelocity = StaticFuntion.GetResizeVector2(lastVelocity, StaticFuntion.GetSizeVector2(currentVelocityBall[serial]));
                     float3 checkRoll = currentVelocityBall[serial] + lastVelocity;
+                    float maxRoll = StaticFuntion.GetSizeVector2(checkRoll) * 1f;
                     if (math.abs(checkRoll.x) > math.abs(checkRoll.z) && checkRoll.x > 0 || math.abs(checkRoll.x) < math.abs(checkRoll.z) && checkRoll.z < 0)
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                         else
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.3f);
                         }
                     }
                     else
                     {
                         if (StaticFuntion.IsPositionOnTheLeftOfLine2(float3.zero, -lastVelocity, currentVelocityBall[serial]))
                         {
-                            currentRotationBall[serial] -= StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, -maxRoll, 0.3f);
                         }
                         else
                         {
-                            currentRotationBall[serial] += StaticFuntion.GetSizeVector2(checkRoll) * 0.3f;
+                            currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                     }
                     CheckCollision(serial);
@@ -1154,5 +1177,16 @@ namespace Billiards
                 return new float3(float.NaN,float.NaN,float.NaN);
             }
         }
+
+        public void AddEventListener(PhysicsEvent physicsEvent)
+        {
+            if(!physicsEvents.Contains(physicsEvent))
+                physicsEvents.Add(physicsEvent);
+        }
+    }
+
+    public interface PhysicsEvent
+    {
+        void OnBall0HitAtBall(int serial);
     }
 }

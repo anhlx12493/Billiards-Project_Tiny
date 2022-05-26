@@ -17,19 +17,19 @@ namespace Billiards
 
         protected override void OnUpdate()
         {
-            //if (GameController.Instance != null)
-            //{
-            //    GameController.Instance.ActiveInteractive();
-            //    if (step == 0)
-            //    {
-            //        GameController.Instance.isPlayer = true;
-            //        GameController.Instance.SetBallInHand(GameController.BallInHand.Free);
-            //        int[] targetBalls = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-            //        GameController.Instance.SetTargetBalls(targetBalls);
-            //        step++;
-            //    }
-            //}
-            //return;
+            if (GameController.Instance != null)
+            {
+                if (step == 0)
+                {
+                    GameController.Instance.SetBallInHand(GameController.BallInHand.Free);
+                    int[] targetBalls = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                    GameController.Instance.SetTargetBalls(targetBalls);
+                    step++;
+                }
+                GameController.Instance.isPlayer = true;
+                GameController.Instance.ActiveInteractive();
+            }
+            return;
             switch (script)
             {
                 case Script.start:
@@ -174,7 +174,7 @@ namespace Billiards
                             {
                                 DisableTargetInfoBall(1);
                             }
-                            if (!Physics.Instance.IsAnyBallMoving)
+                            if (!Physics.Instance.IsAnyBallMoving && !Physics.Instance.IsAnyBallRollingInTrack())
                             {
                                 GameController.Instance.isPlayer = false;
                                 int[] targetBalls = { 2, 3 };
@@ -195,7 +195,7 @@ namespace Billiards
                     break;
                 case Script.show_result:
                     GameController.Instance.OffTimeDown();
-                    if (Physics.Instance.IsBallInPocket(1) && !Physics.Instance.IsBallInPocket(0) && !GameController.Instance.IsWrongFirstHit)
+                    if (Physics.Instance.IsBallInPocket(1) && !Physics.Instance.IsBallInPocket(0) && !GameController.Instance.IsHitWrongBall)
                     {
                         ActivePopupWin();
                     }
