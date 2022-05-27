@@ -972,7 +972,7 @@ namespace Billiards
                 {
                     if (i++ == serialHitBall)
                     {
-                        StaticFuntion.VelocityAfterCollisionBall(positionCueBall, position.Value, force, float3.zero, out isCurrentHit, out currentHitPosition, ref velocityRootOut, ref velocityTargetOut);
+                        StaticFuntion.VelocityAfterCollisionBall(positionCueBall, position.Value, force, out isCurrentHit, out currentHitPosition, ref velocityRootOut, ref velocityTargetOut);
                     }
                 }).WithoutBurst().Run();
                 if (serialHitBall > 0 && !isTargetBalls[serialHitBall])

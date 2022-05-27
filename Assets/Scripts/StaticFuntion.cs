@@ -175,11 +175,11 @@ namespace Billiards
             return vetor.x * vetor.x + vetor.z * vetor.z <= radiusPocket * radiusPocket;
         }
 
-        public static void VelocityAfterCollisionBall(float3 positionRoot, float3 positionTarget, float3 velocityRootIn, float3 velocityTargetIn,
+        public static void VelocityAfterCollisionBall(float3 positionRoot, float3 positionTarget, float3 velocityRootIn,
             out bool isHit, out float3 positionHit, ref float3 velocityRootOut, ref float3 velocityTargetOut)
         {
             positionRoot -= velocityRootIn;
-            GetHitPositionBallToBall(positionRoot, positionTarget + velocityTargetIn, velocityRootIn, out isHit, out positionHit);
+            GetHitPositionBallToBall(positionRoot, positionTarget, velocityRootIn, out isHit, out positionHit);
             if (isHit)
             {
                 float3 vetor = positionTarget - positionHit;
@@ -204,11 +204,11 @@ namespace Billiards
                 float3 O = new float3(x, 0, y);
                 velocityRootOut = positionHit - O;
                 velocityTargetOut = O - R;
-                x = math.abs(velocityRootOut.x) + math.abs(velocityTargetOut.x);
-                y = math.abs(velocityRootOut.z) + math.abs(velocityTargetOut.z);
                 if (x != 0 || y != 0)
                 {
-                    a1 = math.sqrt((velocityRootIn.x * velocityRootIn.x + velocityRootIn.z * velocityRootIn.z) / (x * x + y * y));
+                    //a1 = math.sqrt((velocityRootIn.x * velocityRootIn.x + velocityRootIn.z * velocityRootIn.z) /
+                    //    (velocityRootOut.x * velocityRootOut.x + velocityRootOut.z * velocityRootOut.z + velocityTargetOut.x * velocityTargetOut.x + velocityTargetOut.z * velocityTargetOut.z));
+                    a1 = GetSizeVector2(velocityRootIn) / (GetSizeVector2(velocityRootOut) + GetSizeVector2(velocityTargetOut));
                 }
                 else
                 {
@@ -216,42 +216,6 @@ namespace Billiards
                 }
                 velocityRootOut *= a1;
                 velocityTargetOut *= a1;
-
-                vetor = positionHit - positionTarget;
-                R = positionTarget - velocityTargetIn;
-                a1 = -vetor.z;
-                b1 = vetor.x;
-                c1 = -a1 * R.x - b1 * R.z;
-                a2 = vetor.x;
-                b2 = vetor.z;
-                c2 = -a2 * positionTarget.x - b2 * positionTarget.z;
-                if (math.abs(b1) > math.abs(a1))
-                {
-                    x = (b2 * c1 - b1 * c2) / (a2 * b1 - a1 * b2);
-                    y = (-a1 * x - c1) / b1;
-                }
-                else
-                {
-                    y = (a2 * c1 - a1 * c2) / (a1 * b2 - a2 * b1);
-                    x = (-b1 * y - c1) / a1;
-                }
-                O = new float3(x, 0, y);
-                float3 velocityRootOut1 = positionTarget - O;
-                float3 velocityTargetOut1 = O - R;
-                x = math.abs(velocityRootOut1.x) + math.abs(velocityTargetOut1.x);
-                y = math.abs(velocityRootOut1.z) + math.abs(velocityTargetOut1.z);
-                if (x != 0 || y != 0)
-                {
-                    a1 = math.sqrt((velocityTargetIn.x * velocityTargetIn.x + velocityTargetIn.z * velocityTargetIn.z) / (x * x + y * y));
-                }
-                else
-                {
-                    a1 = 0;
-                }
-                velocityRootOut1 *= a1;
-                velocityTargetOut1 *= a1;
-                velocityRootOut += velocityRootOut1;
-                velocityTargetOut += velocityTargetOut1;
             }
         }
 

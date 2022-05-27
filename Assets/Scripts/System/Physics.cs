@@ -455,6 +455,7 @@ namespace Billiards
 
         private void ApplyFrictionVelocityBall(int serial)
         {
+            return;
             if (IsBallMoving(serial))
             {
                 float powPower = StaticFuntion.GetSizeVector(currentVelocityBall[serial]);
@@ -476,6 +477,7 @@ namespace Billiards
 
         private void HandlePocket(int serial)
         {
+            return;
             if (!isInTrack[serial])
             {
                 if (isInPocket[serial])
@@ -658,10 +660,29 @@ namespace Billiards
             isHitBall = false;
             if (serialClosest >= 0)
             {
-                if (StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]) <= StaticFuntion.GetPowSizeVector2(currentVelocityBall[serial]))
+                if (StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]) < StaticFuntion.GetPowSizeVector2(currentVelocityBall[serial]))
                 {
-                    StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest], currentVelocityBall[serial], currentVelocityBall[serialClosest],
-                    out isHitBall, out positionHitBall, ref velocityA, ref velocityB);
+                    float3 velocityA1 = currentVelocityBall[serial];
+                    float3 velocityB1 = currentVelocityBall[serialClosest];
+                    float3 velocityA2 = velocityA1;
+                    float3 velocityB2 = velocityB1;
+                    StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest], currentVelocityBall[serial],
+                    out isHitBall, out positionHitBall, ref velocityA1, ref velocityB1);
+                    if (isHitBall)
+                    {
+                        StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serialClosest], currentPositionBall[serial], currentVelocityBall[serialClosest],
+                        out bool isHitBall1, out float3 positionHitBall1, ref velocityB2, ref velocityA2);
+                        if (isHitBall1)
+                        {
+                            velocityA = (velocityA1 + currentVelocityBall[serialClosest] + velocityA2 + currentVelocityBall[serial]) * 0.5f;
+                            velocityB = (velocityB1 + currentVelocityBall[serialClosest] + velocityB2 + currentVelocityBall[serial]) * 0.5f;
+                        }
+                        else
+                        {
+                            velocityA = velocityA1 + currentVelocityBall[serialClosest];
+                            velocityB = velocityB1 + currentVelocityBall[serialClosest];
+                        }
+                    }
                 }
             }
             if (isHitBall)
@@ -694,6 +715,11 @@ namespace Billiards
                         {
                             currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
+                    }
+                    if (!CheckCollision(serial))
+                    {
+                        ApplyFrictionVelocityBall(serial);
+                        currentPositionBall[serial] += currentVelocityBall[serial];
                     }
                 }
                 else
@@ -774,8 +800,23 @@ namespace Billiards
                     currentExcludeLine[serial] = -1;
                     currentExcludeLine[serialClosest] = -1;
                     isApplyFriction[serialClosest] = false;
-                    CheckCollision(serial);
-                    CheckCollision(serialClosest);
+                    if (IsCollisionBall(currentPositionBall[serial] + currentVelocityBall[serial], currentPositionBall[serialClosest]))
+                    {
+                        isHit = false;
+                    }
+                    else
+                    {
+                        if (!CheckCollision(serial, serialClosest))
+                        {
+                            ApplyFrictionVelocityBall(serial);
+                            currentPositionBall[serial] += currentVelocityBall[serial];
+                        }
+                        if (!CheckCollision(serialClosest, serial))
+                        {
+                            ApplyFrictionVelocityBall(serialClosest);
+                            currentPositionBall[serialClosest] += currentVelocityBall[serialClosest];
+                        }
+                    }
                 }
             }
             else
@@ -809,7 +850,11 @@ namespace Billiards
                             currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                     }
-                    CheckCollision(serial);
+                    if (!CheckCollision(serial))
+                    {
+                        ApplyFrictionVelocityBall(serial);
+                        currentPositionBall[serial] += currentVelocityBall[serial];
+                    }
                 }
                 else
                 {
@@ -852,14 +897,14 @@ namespace Billiards
             currentPositionBall[serial] = positionHit - StaticFuntion.GetResizeVector2(currentVelocityBall[serial], 0.001f);
             currentVelocityBall[serial] = positionDrop - positionHit;
             currentExcludeLine[serial] = serialBoadLine;
-            if (isInPocket[serial])
-            {
-                currentVelocityBall[serial] *= 0.2f;
-            }
-            else
-            {
-                currentVelocityBall[serial] *= 0.9f;
-            }
+            //if (isInPocket[serial])
+            //{
+            //    currentVelocityBall[serial] *= 0.2f;
+            //}
+            //else
+            //{
+            //    currentVelocityBall[serial] *= 0.9f;
+            //}
         }
 
         private void GetHitPositionBallToBoardLine(int serialBall, int serialExcludeBoadLine, out bool isHit, out float3 positionHit, out int serialBoadLine)
