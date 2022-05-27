@@ -39,8 +39,8 @@
                 "y": 320
             },
             "RenderResolution": {
-                "x": 480,
-                "y": 320
+                "x": 1281,
+                "y": 854
             },
             "RenderGraphMode": 1,
             "MaxResolution": 2048,
