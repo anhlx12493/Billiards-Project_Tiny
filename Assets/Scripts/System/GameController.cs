@@ -7,6 +7,7 @@ using Unity.Tiny;
 using Unity.Physics;
 using Unity.Tiny.Rendering;
 using Unity.Tiny.Text;
+using System.Collections.Generic;
 
 namespace Billiards
 {
@@ -1166,12 +1167,15 @@ namespace Billiards
             }
             isShowingMessage = true;
             timeHangOnMessage = 1 + message.Length * 0.1f;
-            Entity entity = Entity.Null;
+            List<Entity> entitys = new List<Entity>();
             Entities.ForEach((ref Message m, ref Entity e) =>
             {
-                entity = e;
+                entitys.Add(e);
             }).WithoutBurst().Run();
-            TextLayout.SetEntityTextRendererString(EntityManager, entity, message);
+            foreach (Entity entity in entitys)
+            {
+                TextLayout.SetEntityTextRendererString(EntityManager, entity, message);
+            }
             return true;
         }
 
@@ -1210,7 +1214,7 @@ namespace Billiards
 
         public bool ActiveInteractive()
         {
-            if (IsInteractive && IsTiming)
+            if (IsInteractive && IsTiming && isShoot)
                 return false;
             if (!isAnyBallMoving && !isCueBallInPocket)
             {
