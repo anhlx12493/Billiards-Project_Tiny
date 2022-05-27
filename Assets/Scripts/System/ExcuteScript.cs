@@ -157,6 +157,9 @@ namespace Billiards
                         case 0:
                             if (GameController.Instance.IsTimeOut)
                             {
+                                GameController.Instance.isPlayer = false;
+                                int[] targetBalls = { 2, 3 };
+                                GameController.Instance.SetTargetBalls(targetBalls);
                                 script++;
                                 break;
                             }
