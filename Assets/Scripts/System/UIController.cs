@@ -80,12 +80,10 @@ namespace Billiards
 
         private void UpdateWorldMousePosition()
         {
-            var posClick = Input.GetInputPosition();
-            double x = currentHeightSizeCamera * (screenWidth / screenHeight);
-            float3 worldClick = float3.zero;
-            worldClick.x = (float)(posClick.x / screenWidth * x - x / 2d);
-            worldClick.z = (float)(posClick.y / screenHeight * currentHeightSizeCamera - currentHaftHeightSizeCamera + POSITION_Y_CAMERA);
-            WorldMousePosition = worldClick;
+            var screenToWorldSystem = World.GetExistingSystem<ScreenToWorld>();
+            var worldPoint = screenToWorldSystem.ScreenSpaceToWorldSpacePos(Input.GetInputPosition(), 0.3f);
+            float2 result = worldPoint.xz;
+            WorldMousePosition = new float3(result.x,0,result.y);
         }
 
         private void Alignmemt()

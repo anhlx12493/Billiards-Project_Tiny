@@ -31,6 +31,22 @@
             "EmitRuntimeMemoryDebugChecks": false,
             "EmitRuntimeAllocationDebugChecks": false,
             "WebTemplateFolder": ""
+        },
+        {
+            "$type": "Unity.Tiny.Rendering.Settings.TinyRenderingSettings, Unity.Tiny.Rendering.Authoring",
+            "WindowSize": {
+                "x": 480,
+                "y": 320
+            },
+            "RenderResolution": {
+                "x": 480,
+                "y": 320
+            },
+            "RenderGraphMode": 1,
+            "MaxResolution": 2048,
+            "AutoResizeFrame": true,
+            "DisableVsync": false,
+            "GPUSkinning": false
         }
     ]
 }
