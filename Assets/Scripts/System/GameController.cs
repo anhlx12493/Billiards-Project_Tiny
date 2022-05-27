@@ -1220,6 +1220,7 @@ namespace Billiards
                 serialFirstHit = 0;
                 IsHitWrongBall = false;
                 isAbleShowGlow = true;
+                power = 0;
                 return true;
             }
             return false;
