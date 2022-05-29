@@ -181,6 +181,34 @@ namespace Billiards
             {
                 count++;
             }).WithoutBurst().Run();
+            if (count == 16)
+            {
+                int i = 0;
+                float3 putBall = new float3(1.5f, 0, 0);
+                float distanPutX = math.sin(math.PI / 3) * radiusBall * 2.01f;
+                int rowPut = 0;
+                int column = 0;
+                int maxCollumn = 1;
+                float topColumnPos = 0;
+                Entities.ForEach((ref Ball ball, ref Translation position) =>
+                {
+                    if (i > 0)
+                    {
+                        putBall.x = 1.5f + rowPut * distanPutX;
+                        putBall.z = topColumnPos - column * radiusBall * 2.01f;
+                        position.Value = putBall;
+                        column++;
+                        if (column == maxCollumn)
+                        {
+                            maxCollumn++;
+                            column = 0;
+                            rowPut++;
+                            topColumnPos += radiusBall * 1.005f;
+                        }
+                    }
+                    i++;
+                }).WithoutBurst().Run();
+            }
             random = new Random(1);
             currentPositionBall = new float3[count];
             currentVelocityBall = new float3[count];

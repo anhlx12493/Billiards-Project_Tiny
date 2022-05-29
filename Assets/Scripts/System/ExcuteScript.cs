@@ -17,24 +17,25 @@ namespace Billiards
 
         protected override void OnUpdate()
         {
-            //if (GameController.Instance != null)
-            //{
-            //    if (step == 0)
-            //    {
-            //        GameController.Instance.SetBallInHand(GameController.BallInHand.Free);
-            //        int[] targetBalls = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-            //        GameController.Instance.SetTargetBalls(targetBalls);
-            //        GameController.Instance.isPlayer = true;
-            //        GameController.Instance.ActiveInteractive();
-            //    }
-            //    if (step % 100 == 0) {
-            //        GameController.Instance.isPlayer = true;
-            //        GameController.Instance.ActiveInteractive(); 
-            //    }
+            if (GameController.Instance != null)
+            {
+                if (step == 0)
+                {
+                    GameController.Instance.SetBallInHand(GameController.BallInHand.Free);
+                    int[] targetBalls = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                    GameController.Instance.SetTargetBalls(targetBalls);
+                    GameController.Instance.isPlayer = true;
+                    GameController.Instance.ActiveInteractive();
+                }
+                if (step % 100 == 0)
+                {
+                    GameController.Instance.isPlayer = true;
+                    GameController.Instance.ActiveInteractive();
+                }
 
-            //    step++;
-            //}
-            //return;
+                step++;
+            }
+            return;
             switch (script)
             {
                 case Script.start:
