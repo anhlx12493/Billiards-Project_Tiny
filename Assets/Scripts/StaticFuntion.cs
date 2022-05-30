@@ -204,18 +204,16 @@ namespace Billiards
                 float3 O = new float3(x, 0, y);
                 velocityRootOut = positionHit - O;
                 velocityTargetOut = O - R;
-                if (x != 0 || y != 0)
-                {
-                    //a1 = math.sqrt((velocityRootIn.x * velocityRootIn.x + velocityRootIn.z * velocityRootIn.z) /
-                    //    (velocityRootOut.x * velocityRootOut.x + velocityRootOut.z * velocityRootOut.z + velocityTargetOut.x * velocityTargetOut.x + velocityTargetOut.z * velocityTargetOut.z));
-                    a1 = GetSizeVector2(velocityRootIn) / (GetSizeVector2(velocityRootOut) + GetSizeVector2(velocityTargetOut));
-                }
-                else
-                {
-                    a1 = 0;
-                }
-                velocityRootOut *= a1;
-                velocityTargetOut *= a1;
+                //if (x != 0 || y != 0)
+                //{
+                //    a1 = GetSizeVector2(velocityRootIn) / (GetSizeVector2(velocityRootOut) + GetSizeVector2(velocityTargetOut));
+                //}
+                //else
+                //{
+                //    a1 = 0;
+                //}
+                //velocityRootOut *= a1;
+                //velocityTargetOut *= a1;
             }
         }
 

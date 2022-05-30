@@ -10198,6 +10198,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Hand
       objectReference: {fileID: 0}
+    - target: {fileID: 699585389848127146, guid: abee3803bf9b478468b7fb13c8f95c47, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 699585389848127149, guid: abee3803bf9b478468b7fb13c8f95c47, type: 3}
       propertyPath: m_RootOrder
       value: 8

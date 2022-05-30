@@ -195,7 +195,7 @@ namespace Billiards
                     if (i > 0)
                     {
                         putBall.x = 1.5f + rowPut * distanPutX;
-                        putBall.z = topColumnPos - column * radiusBall * 2.01f;
+                        putBall.z = topColumnPos + column * radiusBall * 2.01f;
                         position.Value = putBall;
                         column++;
                         if (column == maxCollumn)
@@ -203,7 +203,7 @@ namespace Billiards
                             maxCollumn++;
                             column = 0;
                             rowPut++;
-                            topColumnPos += radiusBall * 1.005f;
+                            topColumnPos -= radiusBall * 1.005f;
                         }
                     }
                     i++;
@@ -355,6 +355,10 @@ namespace Billiards
                         }
                     }
                 }
+                if (IsAnyBallTouching())
+                {
+                    System.Console.WriteLine("Touching");
+                }
                 HandleTrack();
             }
             IsAnyBallMoving = false;
@@ -377,6 +381,10 @@ namespace Billiards
                         }
                     }
                 }
+            }
+            if (IsAnyBallTouching())
+            {
+                System.Console.WriteLine("Touching");
             }
             HandleTrack();
             i = 0;
@@ -653,30 +661,50 @@ namespace Billiards
 
             float3 positionHit;
             bool isHit;
-            int serialClosest = -1;
             float powClosest = float.MaxValue;
             float curentPowClowsest;
-            float3 velocityA = float3.zero;
-            float3 velocityB = float3.zero;
+            float3 velocityAA = float3.zero;
+            float3 velocityBB1 = float3.zero;
+            float3 velocityBB2 = float3.zero;
+            float3 velocityBB3 = float3.zero;
             float3 positionHitBall = float3.zero;
+            int serialClosest1 = -1;
+            int serialClosest2 = -1;
+            int serialClosest3 = -1;
+            int countCloset = 0;
             bool isHitBall;
+
             if (!isInPocket[serial] && IsBallMoving(serial))
             {
                 for (int i = 0; i < currentPositionBall.Length; i++)
                 {
                     if (!isInPocket[i] && serial != i && i != excludeCheck)
                     {
-                        velocityA = currentVelocityBall[serial];
-                        velocityB = currentVelocityBall[i];
-                        curentPowClowsest = StaticFuntion.GetPowSizeVector2(currentPositionBall[i] - currentPositionBall[serial]);
-                        if (powClosest > curentPowClowsest)
+                        StaticFuntion.GetHitPositionBallToBall(currentPositionBall[serial], currentPositionBall[i], currentVelocityBall[serial], out isHitBall, out positionHit);
+                        if (isHitBall)
                         {
-                            StaticFuntion.GetHitPositionBallToBall(currentPositionBall[serial], currentPositionBall[i], currentVelocityBall[serial], out isHitBall, out positionHit);
-                            if (isHitBall)
+                            curentPowClowsest = StaticFuntion.GetPowSizeVector2(positionHit - currentPositionBall[serial]);
+                            if (powClosest > curentPowClowsest)
                             {
                                 powClosest = curentPowClowsest;
-                                serialClosest = i;
                                 positionHitBall = positionHit;
+                                serialClosest1 = i;
+                                serialClosest2 = serialClosest3 = -1;
+                                countCloset = 1;
+
+                            }
+                            else if (powClosest == curentPowClowsest)
+                            {
+                                if (serialClosest2 < 0)
+                                {
+                                    countCloset++;
+                                    serialClosest2 = i;
+                                }
+                                else if (serialClosest2 < 0)
+                                {
+                                    countCloset++;
+                                    serialClosest3 = i;
+                                }
                             }
                         }
                     }
@@ -684,30 +712,102 @@ namespace Billiards
             }
             GetHitPositionBallToBoardLine(serial, -1, out isHit, out positionHit, out int serialBoadLine);
             isHitBall = false;
-            if (serialClosest >= 0)
+            if (countCloset > 0)
             {
                 if (StaticFuntion.GetPowSizeVector2(positionHitBall - currentPositionBall[serial]) < StaticFuntion.GetPowSizeVector2(currentVelocityBall[serial]))
                 {
-                    float3 velocityA1 = currentVelocityBall[serial];
-                    float3 velocityB1 = currentVelocityBall[serialClosest];
-                    float3 velocityA2 = velocityA1;
-                    float3 velocityB2 = velocityB1;
-                    StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest], currentVelocityBall[serial],
-                    out isHitBall, out positionHitBall, ref velocityA1, ref velocityB1);
-                    if (isHitBall)
+                    bool isHitBall1;
+                    bool isHitBall2;
+                    bool isHitBall3;
+                    float3 velocityA1 = 0;
+                    float3 velocityB1 = 0;
+                    float3 velocityA2 = 0;
+                    float3 velocityB2 = 0;
+                    float3 velocityA3 = 0;
+                    float3 velocityB3 = 0;
+                    float3 velocityA11 = currentVelocityBall[serial];
+                    float3 velocityB11 = currentVelocityBall[serialClosest1];
+                    float3 velocityA12 = velocityA11;
+                    float3 velocityB12 = velocityB11;
+                    int countHitBall = 0;
+                    StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest1], currentVelocityBall[serial],
+                    out isHitBall1, out positionHitBall, ref velocityA11, ref velocityB11);
+                    if (isHitBall1)
                     {
-                        StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serialClosest], currentPositionBall[serial], currentVelocityBall[serialClosest],
-                        out bool isHitBall1, out float3 positionHitBall1, ref velocityB2, ref velocityA2);
+                        isHitBall = true;
+                        countHitBall++;
+                        StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serialClosest1], currentPositionBall[serial], currentVelocityBall[serialClosest1],
+                        out isHitBall1, out float3 positionHitBall1, ref velocityB12, ref velocityA12);
                         if (isHitBall1)
                         {
-                            velocityA = (velocityA1 + currentVelocityBall[serialClosest] + velocityA2 + currentVelocityBall[serial]) * 0.5f;
-                            velocityB = (velocityB1 + currentVelocityBall[serialClosest] + velocityB2 + currentVelocityBall[serial]) * 0.5f;
+                            velocityA1 = (velocityA11 + currentVelocityBall[serialClosest1] + velocityA12 + currentVelocityBall[serial]) * 0.5f;
+                            velocityB1 = (velocityB11 + currentVelocityBall[serialClosest1] + velocityB12 + currentVelocityBall[serial]) * 0.5f;
                         }
                         else
                         {
-                            velocityA = velocityA1 + currentVelocityBall[serialClosest];
-                            velocityB = velocityB1 + currentVelocityBall[serialClosest];
+                            velocityA1 = velocityA11 + currentVelocityBall[serialClosest1];
+                            velocityB1 = velocityB11 + currentVelocityBall[serialClosest1];
                         }
+                        float ratioVelocity = (StaticFuntion.GetSizeVector2(currentVelocityBall[serial]) + StaticFuntion.GetSizeVector2(currentVelocityBall[serialClosest1])) / (StaticFuntion.GetSizeVector2(velocityA) + StaticFuntion.GetSizeVector2(velocityB));
+                        velocityAA *= ratioVelocity;
+                        velocityBB *= ratioVelocity;
+                    }
+                    if (countCloset > 1)
+                    {
+                        float3 velocityA21 = currentVelocityBall[serial];
+                        float3 velocityB21 = currentVelocityBall[serialClosest2];
+                        float3 velocityA22 = velocityA21;
+                        float3 velocityB22 = velocityB21;
+                        StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest2], currentVelocityBall[serial],
+                        out isHitBall2, out float3 positionHitBall1, ref velocityA21, ref velocityB21);
+                        if (isHitBall2)
+                        {
+                            isHitBall = true;
+                            countHitBall++;
+                            StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serialClosest2], currentPositionBall[serial], currentVelocityBall[serialClosest2],
+                            out isHitBall2, out positionHitBall1, ref velocityB22, ref velocityA22);
+                            if (isHitBall2)
+                            {
+                                velocityA2 = (velocityA21 + currentVelocityBall[serialClosest2] + velocityA22 + currentVelocityBall[serial]) * 0.5f;
+                                velocityB2 = (velocityB21 + currentVelocityBall[serialClosest2] + velocityB22 + currentVelocityBall[serial]) * 0.5f;
+                            }
+                            else
+                            {
+                                velocityA2 = velocityA21 + currentVelocityBall[serialClosest2];
+                                velocityB2 = velocityB21 + currentVelocityBall[serialClosest2];
+                            }
+                        }
+                        if (countCloset > 2)
+                        {
+                            float3 velocityA31 = currentVelocityBall[serial];
+                            float3 velocityB31 = currentVelocityBall[serialClosest3];
+                            float3 velocityA32 = velocityA11;
+                            float3 velocityB32 = velocityB11;
+                            StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serial], currentPositionBall[serialClosest3], currentVelocityBall[serial],
+                            out isHitBall3, out positionHitBall1, ref velocityA31, ref velocityB31);
+                            if (isHitBall3)
+                            {
+                                isHitBall = true;
+                                countHitBall++;
+                                StaticFuntion.VelocityAfterCollisionBall(currentPositionBall[serialClosest3], currentPositionBall[serial], currentVelocityBall[serialClosest3],
+                                out isHitBall3, out positionHitBall1, ref velocityB32, ref velocityA32);
+                                if (isHitBall3)
+                                {
+                                    velocityA3 = (velocityA31 + currentVelocityBall[serialClosest3] + velocityA32 + currentVelocityBall[serial]) * 0.5f;
+                                    velocityB3 = (velocityB31 + currentVelocityBall[serialClosest3] + velocityB32 + currentVelocityBall[serial]) * 0.5f;
+                                }
+                                else
+                                {
+                                    velocityA3 = velocityA31 + currentVelocityBall[serialClosest3];
+                                    velocityB3 = velocityB31 + currentVelocityBall[serialClosest3];
+                                }
+                            }
+                        }
+                    }
+                    if (isHitBall)
+                    {
+                        velocityAA = (velocityA1 + velocityA2 + velocityA3) / countHitBall;
+                        velocityBB1 = 
                     }
                 }
             }
@@ -742,10 +842,10 @@ namespace Billiards
                             currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                     }
-                    if (!CheckCollision(serial))
-                    {
-                        currentPositionBall[serial] += currentVelocityBall[serial];
-                    }
+                    //if (!CheckCollision(serial))
+                    //{
+                    //    currentPositionBall[serial] += currentVelocityBall[serial];
+                    //}
                 }
                 else
                 {
@@ -831,14 +931,14 @@ namespace Billiards
                     //}
                     //else
                     {
-                        if (!CheckCollision(serial, serialClosest))
-                        {
-                            currentPositionBall[serial] += currentVelocityBall[serial];
-                        }
-                        if (!CheckCollision(serialClosest, serial))
-                        {
-                            currentPositionBall[serialClosest] += currentVelocityBall[serialClosest];
-                        }
+                        //if (!CheckCollision(serial, serialClosest))
+                        //{
+                        //    currentPositionBall[serial] += currentVelocityBall[serial];
+                        //}
+                        //if (!CheckCollision(serialClosest, serial))
+                        //{
+                        //    currentPositionBall[serialClosest] += currentVelocityBall[serialClosest];
+                        //}
                     }
                 }
             }
@@ -873,10 +973,10 @@ namespace Billiards
                             currentRotationBall[serial].y = math.lerp(currentRotationBall[serial].y, maxRoll, 0.3f);
                         }
                     }
-                    if (!CheckCollision(serial))
-                    {
-                        currentPositionBall[serial] += currentVelocityBall[serial];
-                    }
+                    //if (!CheckCollision(serial))
+                    //{
+                    //    currentPositionBall[serial] += currentVelocityBall[serial];
+                    //}
                 }
                 else
                 {
@@ -1032,10 +1132,11 @@ namespace Billiards
         {
             for (int i = 0; i < currentPositionBall.Length; i++)
             {
-                if (i != serial)
+                if (i != serial && !isInTrack[i] && !isInTrack[serial])
                 {
                     if (IsCollisionBall(currentPositionBall[serial], i))
                     {
+                        Console.WriteLine("Touching " + serial + " " + i);
                         return true;
                     }
                 }
@@ -1231,6 +1332,18 @@ namespace Billiards
             {
                 isHit = false;
             }
+        }
+
+        public bool IsAnyBallTouching()
+        {
+            for (int i = 0; i < currentPositionBall.Length; i++)
+            {
+                if (IsCollisionToAnyBall(i))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public float3 GetPositionBall(int serial)

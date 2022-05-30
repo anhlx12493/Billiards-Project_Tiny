@@ -27,7 +27,7 @@ namespace Billiards
                     GameController.Instance.isPlayer = true;
                     GameController.Instance.ActiveInteractive();
                 }
-                if (step % 100 == 0)
+                if (step % 200 == 0)
                 {
                     GameController.Instance.isPlayer = true;
                     GameController.Instance.ActiveInteractive();
