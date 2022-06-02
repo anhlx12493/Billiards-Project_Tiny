@@ -47,6 +47,10 @@
             "AutoResizeFrame": true,
             "DisableVsync": false,
             "GPUSkinning": false
+        },
+        {
+            "$type": "Unity.Build.Web.DotsRuntime.EmscriptenAdvancedSettings, Unity.Build.Web.DotsRuntime",
+            "AdvancedEmscriptenLinkerCommandLine": "-s TOTAL_MEMORY=128MB "
         }
     ]
 }
