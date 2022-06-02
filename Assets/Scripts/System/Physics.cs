@@ -42,6 +42,7 @@ namespace Billiards
         private int[] softIdByPositionZBallAtSerial;
         private int[] softIdByPositionZBallAtElement;
 
+        private bool[] isCollision;
         private bool[] isApplyFriction;
         private bool[] isInPocket;
         private bool[] isInTrack;
@@ -195,7 +196,7 @@ namespace Billiards
                     if (i > 0)
                     {
                         putBall.x = 1.5f + rowPut * distanPutX;
-                        putBall.z = topColumnPos + column * radiusBall * 2.01f;
+                        putBall.z = topColumnPos + column * radiusBall * 2.0f;
                         position.Value = putBall;
                         column++;
                         if (column == maxCollumn)
@@ -203,7 +204,7 @@ namespace Billiards
                             maxCollumn++;
                             column = 0;
                             rowPut++;
-                            topColumnPos -= radiusBall * 1.005f;
+                            topColumnPos -= radiusBall * 1.0f;
                         }
                     }
                     i++;
@@ -215,6 +216,7 @@ namespace Billiards
             currentRotationBall = new float3[count];
             currentMoveAtCollisionBall = new float3[count];
             currentPositionStartOfPathTrackBall = new float3[count];
+            isCollision = new bool[count];
             isInPocket = new bool[count];
             isInTrack = new bool[count];
             isApplyFriction = new bool[count];
@@ -344,15 +346,27 @@ namespace Billiards
             {
                 for (i = 0; i < currentPositionBall.Length; i++)
                 {
+                    isCollision[i] = false;
                     HandlePocket(i);
                     UpdateRandomSerial(3);
                     if (!isInTrack[i] && IsBallMoving(i))
                     {
                         if (!CheckCollision(i))
                         {
-                            currentPositionBall[i] += currentVelocityBall[i];
-                            currentExcludeLine[i] = -1;
+                            isCollision[i] = false;
                         }
+                        else
+                        {
+                            isCollision[i] = true;
+                        }
+                    }
+                }
+                for (i = 0; i < isCollision.Length; i++)
+                {
+                    if (!isCollision[i])
+                    {
+                        currentPositionBall[i] += currentVelocityBall[i];
+                        currentExcludeLine[i] = -1;
                     }
                 }
                 //if (IsAnyBallTouching())
@@ -364,6 +378,7 @@ namespace Billiards
             IsAnyBallMoving = false;
             for (i = 0; i < currentPositionBall.Length; i++)
             {
+                isCollision[i] = false;
                 HandlePocket(i);
                 if (!isInTrack[i])
                 {
@@ -371,9 +386,11 @@ namespace Billiards
                     {
                         if (!CheckCollision(i))
                         {
-                            ApplyFrictionVelocityBall(i);
-                            currentPositionBall[i] += currentVelocityBall[i];
-                            currentExcludeLine[i] = -1;
+                            isCollision[i] = false;
+                        }
+                        else
+                        {
+                            isCollision[i] = true;
                         }
                         if (!isInPocket[i])
                         {
@@ -382,10 +399,15 @@ namespace Billiards
                     }
                 }
             }
-            //if (IsAnyBallTouching())
-            //{
-            //    System.Console.WriteLine("Touching");
-            //}
+            for (i = 0; i < isCollision.Length; i++)
+            {
+                if (!isCollision[i])
+                {
+                    ApplyFrictionVelocityBall(i);
+                    currentPositionBall[i] += currentVelocityBall[i];
+                    currentExcludeLine[i] = -1;
+                }
+            }
             HandleTrack();
             i = 0;
             Entities.ForEach((ref Ball ball , ref Translation posistion, ref Rotation rot, ref PhysicsVelocity physicsVelocity, ref PhysicsMass physicsMass) =>
@@ -771,8 +793,8 @@ namespace Billiards
                         out bool isCurrentHitBall, out positionHitBall1, ref velocityB12, ref velocityA12);
                         if (isCurrentHitBall)
                         {
-                            velocityA1 = (velocityA11 + currentVelocityBall[serialClosest1] + velocityA12 + currentVelocityBall[serial]) * 0.5f;
-                            velocityB1 = (velocityB11 + currentVelocityBall[serialClosest1] + velocityB12 + currentVelocityBall[serial]) * 0.5f;
+                            velocityA1 = velocityA11 + currentVelocityBall[serialClosest1] + velocityA12 + currentVelocityBall[serial];
+                            velocityB1 = velocityB11 + currentVelocityBall[serialClosest1] + velocityB12 + currentVelocityBall[serial];
                         }
                         else
                         {
@@ -795,8 +817,8 @@ namespace Billiards
                             out bool isCurrentHitBall, out positionHitBall1, ref velocityB22, ref velocityA22);
                             if (isCurrentHitBall)
                             {
-                                velocityA2 = (velocityA21 + currentVelocityBall[serialClosest2] + velocityA22 + currentVelocityBall[serial]) * 0.5f;
-                                velocityB2 = (velocityB21 + currentVelocityBall[serialClosest2] + velocityB22 + currentVelocityBall[serial]) * 0.5f;
+                                velocityA2 = velocityA21 + currentVelocityBall[serialClosest2] + velocityA22 + currentVelocityBall[serial];
+                                velocityB2 = velocityB21 + currentVelocityBall[serialClosest2] + velocityB22 + currentVelocityBall[serial];
                             }
                             else
                             {
@@ -819,8 +841,8 @@ namespace Billiards
                                 out bool isCurrentHitBall, out positionHitBall1, ref velocityB32, ref velocityA32);
                                 if (isCurrentHitBall)
                                 {
-                                    velocityA3 = (velocityA31 + currentVelocityBall[serialClosest3] + velocityA32 + currentVelocityBall[serial]) * 0.5f;
-                                    velocityB3 = (velocityB31 + currentVelocityBall[serialClosest3] + velocityB32 + currentVelocityBall[serial]) * 0.5f;
+                                    velocityA3 = velocityA31 + currentVelocityBall[serialClosest3] + velocityA32 + currentVelocityBall[serial];
+                                    velocityB3 = velocityB31 + currentVelocityBall[serialClosest3] + velocityB32 + currentVelocityBall[serial];
                                 }
                                 else
                                 {
@@ -832,7 +854,7 @@ namespace Billiards
                     }
                     if (isHitBall)
                     {
-                        velocityA = velocityA1 + velocityA2 + velocityA3;
+                        velocityA = (velocityA1 + velocityA2 + velocityA3) /*/ (isHitBall3 ? 3 : isHitBall2 ? 2 : 1)*/;
                         float ratioVelocity = (StaticFuntion.GetSizeVector2(currentVelocityBall[serial])
                             + (isHitBall1 ? StaticFuntion.GetSizeVector2(currentVelocityBall[serialClosest1]) : 0)
                             + (isHitBall2 ? StaticFuntion.GetSizeVector2(currentVelocityBall[serialClosest2]) : 0)

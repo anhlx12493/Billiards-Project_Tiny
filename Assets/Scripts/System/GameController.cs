@@ -339,14 +339,14 @@ namespace Billiards
                 {
                     serial = 0;
                     adjustUp = mousePosition.z - lastWorldPositionAdjust.z;
-                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.25f);
+                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.45f);
                     lastWorldPositionAdjust = mousePosition;
                     isSmoothRotating = true;
                 }
                 else if (isAdjustBoard)
                 {
                     adjustUp = StaticFuntion.GetAngle(lastWorldPositionAdjust - positionCueBall, mousePosition - positionCueBall);
-                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.25f);
+                    StaticFuntion.RotateVectorWithoutSize2(ref targetDirection, adjustUp * 0.45f);
                     lastWorldPositionAdjust = mousePosition;
                     isSmoothRotating = true;
                 }
