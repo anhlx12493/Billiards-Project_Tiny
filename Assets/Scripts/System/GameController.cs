@@ -651,7 +651,7 @@ namespace Billiards
                     if (isPlayer && isTargetBalls[i++])
                     {
                         meshRenderer.material = mat;
-                        position.Value.y = 0;
+                        position.Value.y = 4;
                     }
                     else
                     {
