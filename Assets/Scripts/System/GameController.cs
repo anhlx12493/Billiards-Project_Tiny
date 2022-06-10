@@ -238,7 +238,7 @@ namespace Billiards
                             if (isFirst)
                             {
                                 isFirst = false;
-                                scale.Value.z = math.clamp((mousePosition.z - firstWorldPositionPower.z) / sizeZ + 1f, 0f, 1f);
+                                scale.Value.z = math.clamp((mousePosition.z - firstWorldPositionPower.z) / sizeZ + 1.05f, 0f, 1f);
                                 power = (1 - scale.Value.z) * MAX_POWER;
                             }
                         }).WithoutBurst().Run();
